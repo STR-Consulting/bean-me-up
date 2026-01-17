@@ -129,11 +129,10 @@ git push
 # === Version release ===
 if [ -n "$NEW_VERSION" ]; then
     echo ""
-    echo "=== Creating release $NEW_VERSION ==="
+    echo "=== Tagging release $NEW_VERSION ==="
     git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION"
     git push --tags
-    gh release create "$NEW_VERSION" --title "$NEW_VERSION" --generate-notes
-    echo "Release $NEW_VERSION created"
+    echo "Tag $NEW_VERSION pushed - GoReleaser will create the release via GitHub Actions"
 fi
 
 echo ""
