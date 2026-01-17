@@ -13,7 +13,7 @@ bean-me-up is a companion tool for the [beans](https://github.com/hmans/beans) i
 ## Installation
 
 ```bash
-go install github.com/STR-Consulting/bean-me-up@latest
+go install github.com/STR-Consulting/bean-me-up/cmd/beanup@latest
 ```
 
 Or build from source:
@@ -21,7 +21,7 @@ Or build from source:
 ```bash
 git clone https://github.com/STR-Consulting/bean-me-up
 cd bean-me-up
-go build .
+go build ./cmd/beanup
 ```
 
 ## Setup
@@ -61,13 +61,13 @@ export CLICKUP_TOKEN="pk_your_clickup_api_token"
 
 ```bash
 # List available statuses on your ClickUp list
-bean-me-up statuses
+beanup statuses
 
 # List custom fields and their IDs
-bean-me-up fields
+beanup fields
 
 # List workspace members and their IDs
-bean-me-up users
+beanup users
 ```
 
 ## Usage
@@ -76,42 +76,42 @@ bean-me-up users
 
 ```bash
 # Sync all beans (respects sync_filter)
-bean-me-up sync
+beanup sync
 
 # Sync specific beans
-bean-me-up sync bean-abc1 bean-def2
+beanup sync bean-abc1 bean-def2
 
 # Preview what would be synced
-bean-me-up sync --dry-run
+beanup sync --dry-run
 
 # Force update even if unchanged
-bean-me-up sync --force
+beanup sync --force
 
 # Skip relationship syncing (dependencies)
-bean-me-up sync --no-relationships
+beanup sync --no-relationships
 ```
 
 ### Manual Linking
 
 ```bash
 # Link a bean to an existing ClickUp task
-bean-me-up link bean-abc1 868h4abcd
+beanup link bean-abc1 868h4abcd
 
 # Remove a link
-bean-me-up unlink bean-abc1
+beanup unlink bean-abc1
 ```
 
 ### View Status
 
 ```bash
 # Show sync status for all linked beans
-bean-me-up status
+beanup status
 
 # Show status for specific beans
-bean-me-up status bean-abc1 bean-def2
+beanup status bean-abc1 bean-def2
 
 # JSON output
-bean-me-up status --json
+beanup status --json
 ```
 
 ## How Sync Works

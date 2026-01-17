@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 # Build
-go build .
+go build ./cmd/beanup
 
 # Run tests
 go test ./...
@@ -18,7 +18,7 @@ go test ./internal/clickup -run TestFunctionName
 golangci-lint run
 
 # Install locally
-go install .
+go install ./cmd/beanup
 ```
 
 ## Architecture Overview
@@ -33,6 +33,7 @@ bean-me-up syncs [beans](https://github.com/hmans/beans) issue tracker to ClickU
 | Package | Purpose |
 |---------|---------|
 | `cmd/` | Cobra CLI commands. Each command is a file; register with `rootCmd.AddCommand()` in `init()` |
+| `cmd/beanup/` | Main entrypoint for the `beanup` binary |
 | `internal/config/` | YAML configuration loading with default mappings |
 | `internal/beans/` | Wrapper around beans CLI, JSON parsing |
 | `internal/clickup/` | REST API client with retry logic, sync orchestration |
