@@ -1,4 +1,4 @@
-# bean-me-up
+# 🫘 bean-me-up
 
 Sync [beans](https://github.com/hmans/beans) to ClickUp tasks.
 
@@ -7,7 +7,7 @@ Sync [beans](https://github.com/hmans/beans) to ClickUp tasks.
 bean-me-up is a companion tool for the [beans](https://github.com/hmans/beans) issue tracker that syncs beans to ClickUp tasks. It:
 
 - Calls the standard `beans` CLI with `--json` output (no internal library dependency)
-- Directly manipulates bean markdown files to store sync state in frontmatter
+- Stores sync state in `.beans/.sync.json` (never modifies bean files)
 - Works alongside standard beans without modification
 
 ## Installation
@@ -130,13 +130,20 @@ bean-me-up status --json
 3. **Relationships** are synced as ClickUp dependencies:
    - Bean A `blocking: [B, C]` → Tasks B and C depend on task A
 
-4. **Sync state** is stored in bean frontmatter:
-   ```yaml
-   sync:
-     clickup:
-       task_id: "868h4abcd"
-       synced_at: "2024-01-15T10:30:00Z"
+4. **Sync state** is stored in `.beans/.sync.json` (not in bean files):
+   ```json
+   {
+     "beans": {
+       "bean-abc1": {
+         "clickup": {
+           "task_id": "868h4abcd",
+           "synced_at": "2024-01-15T10:30:00Z"
+         }
+       }
+     }
+   }
    ```
+   This avoids conflicts with the beans CLI which overwrites frontmatter.
 
 ## Configuration Reference
 
