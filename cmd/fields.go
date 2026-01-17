@@ -16,15 +16,15 @@ var fieldsCmd = &cobra.Command{
 	Long: `Lists all custom fields available on the configured ClickUp list.
 
 Use this command to find the UUIDs of custom fields that you want to map
-in your .bean-me-up.yml configuration.
+in your .beans.clickup.yml configuration.
 
 Requires CLICKUP_TOKEN environment variable to be set.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
 		// Validate config
-		if cfg.ClickUp.ListID == "" {
-			return fmt.Errorf("ClickUp list_id is required in .bean-me-up.yml")
+		if cfg.Beans.ClickUp.ListID == "" {
+			return fmt.Errorf("ClickUp list_id is required in .beans.clickup.yml")
 		}
 
 		// Get ClickUp token
@@ -37,7 +37,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 		client := clickup.NewClient(token)
 
 		// Fetch custom fields
-		fields, err := client.GetAccessibleCustomFields(ctx, cfg.ClickUp.ListID)
+		fields, err := client.GetAccessibleCustomFields(ctx, cfg.Beans.ClickUp.ListID)
 		if err != nil {
 			return fmt.Errorf("fetching custom fields: %w", err)
 		}
@@ -74,13 +74,14 @@ func outputFieldsText(fields []clickup.FieldInfo) error {
 		fmt.Println()
 	}
 
-	fmt.Println("Add these IDs to your .bean-me-up.yml:")
+	fmt.Println("Add these IDs to your .beans.clickup.yml:")
 	fmt.Println()
-	fmt.Println("  clickup:")
-	fmt.Println("    custom_fields:")
-	fmt.Println("      bean_id: \"<text-field-id>\"")
-	fmt.Println("      created_at: \"<date-field-id>\"")
-	fmt.Println("      updated_at: \"<date-field-id>\"")
+	fmt.Println("  beans:")
+	fmt.Println("    clickup:")
+	fmt.Println("      custom_fields:")
+	fmt.Println("        bean_id: \"<text-field-id>\"")
+	fmt.Println("        created_at: \"<date-field-id>\"")
+	fmt.Println("        updated_at: \"<date-field-id>\"")
 
 	return nil
 }

@@ -17,15 +17,15 @@ var statusesCmd = &cobra.Command{
 	Long: `Lists all statuses available on the configured ClickUp list.
 
 Use this command to find the exact status names for configuring
-status_mapping in your .bean-me-up.yml configuration.
+status_mapping in your .beans.clickup.yml configuration.
 
 Requires CLICKUP_TOKEN environment variable to be set.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
 		// Validate config
-		if cfg.ClickUp.ListID == "" {
-			return fmt.Errorf("ClickUp list_id is required in .bean-me-up.yml")
+		if cfg.Beans.ClickUp.ListID == "" {
+			return fmt.Errorf("ClickUp list_id is required in .beans.clickup.yml")
 		}
 
 		// Get ClickUp token
@@ -38,7 +38,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 		client := clickup.NewClient(token)
 
 		// Fetch list info (includes statuses)
-		list, err := client.GetList(ctx, cfg.ClickUp.ListID)
+		list, err := client.GetList(ctx, cfg.Beans.ClickUp.ListID)
 		if err != nil {
 			return fmt.Errorf("fetching list: %w", err)
 		}
@@ -70,14 +70,15 @@ func outputStatusesText(listName string, statuses []clickup.Status) error {
 	}
 
 	fmt.Println()
-	fmt.Println("Add status_mapping to your .bean-me-up.yml:")
+	fmt.Println("Add status_mapping to your .beans.clickup.yml:")
 	fmt.Println()
-	fmt.Println("  clickup:")
-	fmt.Println("    status_mapping:")
-	fmt.Println("      draft: \"" + suggestStatus(statuses, "not started", "backlog", "open") + "\"")
-	fmt.Println("      todo: \"" + suggestStatus(statuses, "not started", "to do", "open") + "\"")
-	fmt.Println("      in-progress: \"" + suggestStatus(statuses, "in progress", "active", "doing") + "\"")
-	fmt.Println("      completed: \"" + suggestStatus(statuses, "completed", "complete", "done", "closed") + "\"")
+	fmt.Println("  beans:")
+	fmt.Println("    clickup:")
+	fmt.Println("      status_mapping:")
+	fmt.Println("        draft: \"" + suggestStatus(statuses, "not started", "backlog", "open") + "\"")
+	fmt.Println("        todo: \"" + suggestStatus(statuses, "not started", "to do", "open") + "\"")
+	fmt.Println("        in-progress: \"" + suggestStatus(statuses, "in progress", "active", "doing") + "\"")
+	fmt.Println("        completed: \"" + suggestStatus(statuses, "completed", "complete", "done", "closed") + "\"")
 
 	return nil
 }

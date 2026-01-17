@@ -4,6 +4,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/exec"
 
 	"github.com/STR-Consulting/bean-me-up/internal/config"
 	"github.com/spf13/cobra"
@@ -21,18 +22,23 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "bean-me-up",
+	Use:   "beanup",
 	Short: "Sync beans to ClickUp",
-	Long: `bean-me-up syncs beans (from the beans CLI) to ClickUp tasks.
+	Long: `beanup syncs beans (from the beans CLI) to ClickUp tasks.
 
 It works as a companion tool to the standard beans CLI, storing sync
 state in .beans/.sync.json without modifying bean files.
 
-Configuration is stored in .bean-me-up.yml in your project directory.`,
+Configuration is stored in .beans.clickup.yml in your project directory.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip config loading for help commands
 		if cmd.Name() == "help" || cmd.Name() == "completion" {
 			return nil
+		}
+
+		// Check if beans CLI is installed
+		if !checkBeansInstalled() {
+			fmt.Fprintln(os.Stderr, "Warning: beans CLI not found in PATH")
 		}
 
 		// Load configuration
@@ -54,11 +60,6 @@ Configuration is stored in .bean-me-up.yml in your project directory.`,
 			}
 		}
 
-		// Override beans path if specified
-		if beansPath != "" {
-			cfg.BeansPath = beansPath
-		}
-
 		return nil
 	},
 }
@@ -69,14 +70,31 @@ func Execute() error {
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: .bean-me-up.yml)")
-	rootCmd.PersistentFlags().StringVar(&beansPath, "beans-path", "", "path to beans directory (default: from config)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default: .beans.clickup.yml)")
+	rootCmd.PersistentFlags().StringVar(&beansPath, "beans-path", "", "path to beans directory (default: from .beans.yml)")
 	rootCmd.PersistentFlags().BoolVar(&jsonOut, "json", false, "output as JSON")
 }
 
+// checkBeansInstalled returns true if the beans CLI is installed.
+func checkBeansInstalled() bool {
+	_, err := exec.LookPath("beans")
+	return err == nil
+}
+
 // getBeansPath returns the resolved beans path.
+// Priority: 1) --beans-path flag, 2) beans.path from .beans.yml
 func getBeansPath() string {
-	return cfg.ResolveBeansPath(configDir)
+	if beansPath != "" {
+		return beansPath
+	}
+
+	// Load from .beans.yml
+	path, err := config.LoadBeansPath(configDir)
+	if err != nil {
+		// Fall back to default if .beans.yml not found
+		return ".beans"
+	}
+	return path
 }
 
 // getClickUpToken returns the ClickUp API token from environment.

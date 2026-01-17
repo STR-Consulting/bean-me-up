@@ -11,15 +11,19 @@ import (
 
 const (
 	// ConfigFileName is the name of the config file
-	ConfigFileName = ".bean-me-up.yml"
-	// DefaultBeansPath is the default beans directory
-	DefaultBeansPath = ".beans"
+	ConfigFileName = ".beans.clickup.yml"
+	// BeansConfigFileName is the name of the beans CLI config file
+	BeansConfigFileName = ".beans.yml"
 )
 
 // Config holds the bean-me-up configuration.
 type Config struct {
-	BeansPath string        `yaml:"beans_path,omitempty"`
-	ClickUp   ClickUpConfig `yaml:"clickup"`
+	Beans BeansWrapper `yaml:"beans"`
+}
+
+// BeansWrapper wraps the ClickUp configuration under the beans key.
+type BeansWrapper struct {
+	ClickUp ClickUpConfig `yaml:"clickup"`
 }
 
 // ClickUpConfig holds ClickUp-specific settings.
@@ -31,6 +35,13 @@ type ClickUpConfig struct {
 	CustomFields    *CustomFieldsMap  `yaml:"custom_fields,omitempty"`
 	Users           map[string]int    `yaml:"users,omitempty"`
 	SyncFilter      *SyncFilter       `yaml:"sync_filter,omitempty"`
+}
+
+// BeansConfig represents the beans CLI configuration.
+type BeansConfig struct {
+	Beans struct {
+		Path string `yaml:"path"`
+	} `yaml:"beans"`
 }
 
 // CustomFieldsMap maps bean fields to ClickUp custom field UUIDs.
@@ -67,10 +78,11 @@ var DefaultPriorityMapping = map[string]int{
 // Default returns a Config with default values.
 func Default() *Config {
 	return &Config{
-		BeansPath: DefaultBeansPath,
-		ClickUp: ClickUpConfig{
-			StatusMapping:   DefaultStatusMapping,
-			PriorityMapping: DefaultPriorityMapping,
+		Beans: BeansWrapper{
+			ClickUp: ClickUpConfig{
+				StatusMapping:   DefaultStatusMapping,
+				PriorityMapping: DefaultPriorityMapping,
+			},
 		},
 	}
 }
@@ -111,14 +123,11 @@ func Load(configPath string) (*Config, error) {
 	}
 
 	// Apply defaults for missing values
-	if cfg.BeansPath == "" {
-		cfg.BeansPath = DefaultBeansPath
+	if cfg.Beans.ClickUp.StatusMapping == nil {
+		cfg.Beans.ClickUp.StatusMapping = DefaultStatusMapping
 	}
-	if cfg.ClickUp.StatusMapping == nil {
-		cfg.ClickUp.StatusMapping = DefaultStatusMapping
-	}
-	if cfg.ClickUp.PriorityMapping == nil {
-		cfg.ClickUp.PriorityMapping = DefaultPriorityMapping
+	if cfg.Beans.ClickUp.PriorityMapping == nil {
+		cfg.Beans.ClickUp.PriorityMapping = DefaultPriorityMapping
 	}
 
 	return cfg, nil
@@ -143,26 +152,75 @@ func LoadFromDirectory(startDir string) (*Config, string, error) {
 	return cfg, filepath.Dir(configPath), nil
 }
 
-// ResolveBeansPath returns the absolute path to the beans directory.
-func (c *Config) ResolveBeansPath(configDir string) string {
-	if filepath.IsAbs(c.BeansPath) {
-		return c.BeansPath
+// FindBeansConfig searches upward from the given directory for .beans.yml.
+// Returns the absolute path to the config file, or empty string if not found.
+func FindBeansConfig(startDir string) (string, error) {
+	dir, err := filepath.Abs(startDir)
+	if err != nil {
+		return "", err
 	}
-	return filepath.Join(configDir, c.BeansPath)
+
+	for {
+		configPath := filepath.Join(dir, BeansConfigFileName)
+		if _, err := os.Stat(configPath); err == nil {
+			return configPath, nil
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			// Reached filesystem root
+			return "", nil
+		}
+		dir = parent
+	}
+}
+
+// LoadBeansPath loads the beans path from .beans.yml in the given directory.
+// If not found, it searches upward. Returns the resolved absolute path.
+func LoadBeansPath(startDir string) (string, error) {
+	configPath, err := FindBeansConfig(startDir)
+	if err != nil {
+		return "", fmt.Errorf("finding beans config: %w", err)
+	}
+	if configPath == "" {
+		return "", fmt.Errorf("no %s found (searched from %s)", BeansConfigFileName, startDir)
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", fmt.Errorf("reading beans config: %w", err)
+	}
+
+	var bc BeansConfig
+	if err := yaml.Unmarshal(data, &bc); err != nil {
+		return "", fmt.Errorf("parsing beans config: %w", err)
+	}
+
+	beansPath := bc.Beans.Path
+	if beansPath == "" {
+		beansPath = ".beans" // Default if not specified
+	}
+
+	// Resolve relative path against config file directory
+	if !filepath.IsAbs(beansPath) {
+		beansPath = filepath.Join(filepath.Dir(configPath), beansPath)
+	}
+
+	return beansPath, nil
 }
 
 // GetStatusMapping returns the effective status mapping.
 func (c *Config) GetStatusMapping() map[string]string {
-	if c.ClickUp.StatusMapping != nil {
-		return c.ClickUp.StatusMapping
+	if c.Beans.ClickUp.StatusMapping != nil {
+		return c.Beans.ClickUp.StatusMapping
 	}
 	return DefaultStatusMapping
 }
 
 // GetPriorityMapping returns the effective priority mapping.
 func (c *Config) GetPriorityMapping() map[string]int {
-	if c.ClickUp.PriorityMapping != nil {
-		return c.ClickUp.PriorityMapping
+	if c.Beans.ClickUp.PriorityMapping != nil {
+		return c.Beans.ClickUp.PriorityMapping
 	}
 	return DefaultPriorityMapping
 }

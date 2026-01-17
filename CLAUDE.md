@@ -74,6 +74,6 @@ The ClickUp client (`internal/clickup/client.go`) implements exponential backoff
 
 ## Configuration
 
-Requires `.bean-me-up.yml` (found via upward search from cwd) and `CLICKUP_TOKEN` environment variable.
+Requires `.beans.clickup.yml` (found via upward search from cwd) and `CLICKUP_TOKEN` environment variable.
 
-See `.bean-me-up.yml.example` for all options.
+See `.beans.clickup.yml.example` for all options.

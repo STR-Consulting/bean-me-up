@@ -36,8 +36,8 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 		ctx := context.Background()
 
 		// Validate config
-		if cfg.ClickUp.ListID == "" {
-			return fmt.Errorf("ClickUp list_id is required in .bean-me-up.yml")
+		if cfg.Beans.ClickUp.ListID == "" {
+			return fmt.Errorf("ClickUp list_id is required in .beans.clickup.yml")
 		}
 
 		// Get ClickUp token
@@ -70,7 +70,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 			if err != nil {
 				return fmt.Errorf("listing beans: %w", err)
 			}
-			beanList = clickup.FilterBeansForSync(beanList, cfg.ClickUp.SyncFilter)
+			beanList = clickup.FilterBeansForSync(beanList, cfg.Beans.ClickUp.SyncFilter)
 		}
 
 		if len(beanList) == 0 {
@@ -87,7 +87,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 			DryRun:          syncDryRun,
 			Force:           syncForce,
 			NoRelationships: syncNoRelationships,
-			ListID:          cfg.ClickUp.ListID,
+			ListID:          cfg.Beans.ClickUp.ListID,
 		}
 
 		// Show progress unless JSON output is requested
@@ -102,7 +102,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 			}
 		}
 
-		syncer := clickup.NewSyncer(client, &cfg.ClickUp, opts, getBeansPath(), syncStore)
+		syncer := clickup.NewSyncer(client, &cfg.Beans.ClickUp, opts, getBeansPath(), syncStore)
 
 		// Run sync
 		results, err := syncer.SyncBeans(ctx, beanList)
