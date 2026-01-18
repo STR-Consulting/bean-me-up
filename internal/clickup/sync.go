@@ -235,6 +235,7 @@ func (s *Syncer) syncBean(ctx context.Context, b *beans.Bean) SyncResult {
 				Name:                &b.Title,
 				MarkdownDescription: &description,
 				Priority:            priority,
+				CustomItemID:        s.getClickUpCustomItemID(b.Type),
 			}
 			if clickUpStatus != "" {
 				update.Status = &clickUpStatus

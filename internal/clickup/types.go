@@ -51,6 +51,7 @@ type UpdateTaskRequest struct {
 	Status              *string `json:"status,omitempty"`
 	Priority            *int    `json:"priority,omitempty"`
 	Parent              *string `json:"parent,omitempty"`
+	CustomItemID        *int    `json:"custom_item_id,omitempty"` // Custom task type ID (e.g., Bug, Milestone)
 }
 
 // Dependency represents a task dependency in ClickUp.
