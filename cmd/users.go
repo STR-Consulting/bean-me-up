@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/STR-Consulting/bean-me-up/internal/clickup"
@@ -47,9 +45,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 }
 
 func outputUsersJSON(members []clickup.Member) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(members)
+	return outputJSON(members)
 }
 
 func outputUsersText(members []clickup.Member) error {

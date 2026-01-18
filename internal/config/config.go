@@ -75,18 +75,6 @@ var DefaultPriorityMapping = map[string]int{
 	"deferred": 4,
 }
 
-// Default returns a Config with default values.
-func Default() *Config {
-	return &Config{
-		Beans: BeansWrapper{
-			ClickUp: ClickUpConfig{
-				StatusMapping:   DefaultStatusMapping,
-				PriorityMapping: DefaultPriorityMapping,
-			},
-		},
-	}
-}
-
 // FindConfig searches upward from the given directory for a config file.
 // Returns the absolute path to the config file, or empty string if not found.
 func FindConfig(startDir string) (string, error) {
@@ -117,7 +105,14 @@ func Load(configPath string) (*Config, error) {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
 
-	cfg := Default()
+	cfg := &Config{
+		Beans: BeansWrapper{
+			ClickUp: ClickUpConfig{
+				StatusMapping:   DefaultStatusMapping,
+				PriorityMapping: DefaultPriorityMapping,
+			},
+		},
+	}
 	if err := yaml.Unmarshal(data, cfg); err != nil {
 		return nil, fmt.Errorf("parsing config: %w", err)
 	}
@@ -152,38 +147,29 @@ func LoadFromDirectory(startDir string) (*Config, string, error) {
 	return cfg, filepath.Dir(configPath), nil
 }
 
-// FindBeansConfig searches upward from the given directory for .beans.yml.
-// Returns the absolute path to the config file, or empty string if not found.
-func FindBeansConfig(startDir string) (string, error) {
+// LoadBeansPath loads the beans path from .beans.yml in the given directory.
+// If not found, it searches upward. Returns the resolved absolute path.
+func LoadBeansPath(startDir string) (string, error) {
+	// Search upward for .beans.yml
 	dir, err := filepath.Abs(startDir)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("finding beans config: %w", err)
 	}
 
+	var configPath string
 	for {
-		configPath := filepath.Join(dir, BeansConfigFileName)
-		if _, err := os.Stat(configPath); err == nil {
-			return configPath, nil
+		candidatePath := filepath.Join(dir, BeansConfigFileName)
+		if _, err := os.Stat(candidatePath); err == nil {
+			configPath = candidatePath
+			break
 		}
 
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			// Reached filesystem root
-			return "", nil
+			return "", fmt.Errorf("no %s found (searched from %s)", BeansConfigFileName, startDir)
 		}
 		dir = parent
-	}
-}
-
-// LoadBeansPath loads the beans path from .beans.yml in the given directory.
-// If not found, it searches upward. Returns the resolved absolute path.
-func LoadBeansPath(startDir string) (string, error) {
-	configPath, err := FindBeansConfig(startDir)
-	if err != nil {
-		return "", fmt.Errorf("finding beans config: %w", err)
-	}
-	if configPath == "" {
-		return "", fmt.Errorf("no %s found (searched from %s)", BeansConfigFileName, startDir)
 	}
 
 	data, err := os.ReadFile(configPath)

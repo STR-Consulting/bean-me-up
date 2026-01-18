@@ -1,12 +1,9 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/STR-Consulting/bean-me-up/internal/beans"
-	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +26,7 @@ Note: This does not delete or modify the ClickUp task itself.`,
 		}
 
 		// Load sync state store
-		syncStore, err := syncstate.Load(getBeansPath())
+		syncStore, err := loadSyncStore()
 		if err != nil {
 			return fmt.Errorf("loading sync state: %w", err)
 		}
@@ -74,7 +71,5 @@ func outputUnlinkJSON(bean *beans.Bean, taskID, action string) error {
 	if taskID != "" {
 		result["task_id"] = taskID
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(result)
+	return outputJSON(result)
 }

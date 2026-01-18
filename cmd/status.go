@@ -2,13 +2,10 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/STR-Consulting/bean-me-up/internal/beans"
 	"github.com/STR-Consulting/bean-me-up/internal/clickup"
-	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +20,7 @@ status for all beans that are linked to ClickUp tasks.`,
 		ctx := context.Background()
 
 		// Load sync state store
-		syncStore, err := syncstate.Load(getBeansPath())
+		syncStore, err := loadSyncStore()
 		if err != nil {
 			return fmt.Errorf("loading sync state: %w", err)
 		}
@@ -117,9 +114,7 @@ status for all beans that are linked to ClickUp tasks.`,
 		}
 
 		if jsonOut {
-			enc := json.NewEncoder(os.Stdout)
-			enc.SetIndent("", "  ")
-			return enc.Encode(statuses)
+			return outputJSON(statuses)
 		}
 
 		// Text output

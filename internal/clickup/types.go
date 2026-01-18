@@ -77,6 +77,18 @@ type taskResponse struct {
 	Parent      *string `json:"parent"`
 }
 
+// toTaskInfo converts a taskResponse to a TaskInfo.
+func (r *taskResponse) toTaskInfo() *TaskInfo {
+	return &TaskInfo{
+		ID:          r.ID,
+		Name:        r.Name,
+		Description: r.Description,
+		Status:      r.Status,
+		URL:         r.URL,
+		Parent:      r.Parent,
+	}
+}
+
 // listResponse is the API response for getting list details.
 type listResponse struct {
 	ID       string   `json:"id"`

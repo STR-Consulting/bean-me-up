@@ -2,12 +2,14 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/STR-Consulting/bean-me-up/internal/config"
+	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
 	"github.com/spf13/cobra"
 )
 
@@ -105,4 +107,24 @@ func getClickUpToken() (string, error) {
 		return "", fmt.Errorf("CLICKUP_TOKEN environment variable is not set")
 	}
 	return token, nil
+}
+
+// outputJSON writes a value as indented JSON to stdout.
+func outputJSON(v interface{}) error {
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(v)
+}
+
+// requireListID returns an error if list_id is not configured.
+func requireListID() error {
+	if cfg.Beans.ClickUp.ListID == "" {
+		return fmt.Errorf("ClickUp list_id is required in .beans.clickup.yml")
+	}
+	return nil
+}
+
+// loadSyncStore loads the sync state store from the beans path.
+func loadSyncStore() (*syncstate.Store, error) {
+	return syncstate.Load(getBeansPath())
 }

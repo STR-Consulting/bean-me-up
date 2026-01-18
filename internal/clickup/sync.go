@@ -565,14 +565,6 @@ func (s *Syncer) syncRelationships(ctx context.Context, b *beans.Bean) error {
 	return nil
 }
 
-// GetStatusMapping returns the effective status mapping for display.
-func GetStatusMapping(cfg *config.ClickUpConfig) map[string]string {
-	if cfg != nil && cfg.StatusMapping != nil {
-		return cfg.StatusMapping
-	}
-	return config.DefaultStatusMapping
-}
-
 // FilterBeansForSync filters beans based on sync filter configuration.
 func FilterBeansForSync(beanList []beans.Bean, filter *config.SyncFilter) []beans.Bean {
 	if filter == nil {

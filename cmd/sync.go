@@ -2,13 +2,10 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/STR-Consulting/bean-me-up/internal/beans"
 	"github.com/STR-Consulting/bean-me-up/internal/clickup"
-	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
 	"github.com/spf13/cobra"
 )
 
@@ -36,8 +33,8 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 		ctx := context.Background()
 
 		// Validate config
-		if cfg.Beans.ClickUp.ListID == "" {
-			return fmt.Errorf("ClickUp list_id is required in .beans.clickup.yml")
+		if err := requireListID(); err != nil {
+			return err
 		}
 
 		// Get ClickUp token
@@ -47,7 +44,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 		}
 
 		// Load sync state store
-		syncStore, err := syncstate.Load(getBeansPath())
+		syncStore, err := loadSyncStore()
 		if err != nil {
 			return fmt.Errorf("loading sync state: %w", err)
 		}
@@ -161,9 +158,7 @@ func outputResultsJSON(results []clickup.SyncResult) error {
 		}
 	}
 
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(jsonResults)
+	return outputJSON(jsonResults)
 }
 
 func outputResultsText(results []clickup.SyncResult) error {

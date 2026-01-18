@@ -2,14 +2,11 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/STR-Consulting/bean-me-up/internal/beans"
 	"github.com/STR-Consulting/bean-me-up/internal/clickup"
-	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +31,7 @@ associate with a bean, or when syncing fails and you need to fix the link.`,
 		}
 
 		// Load sync state store
-		syncStore, err := syncstate.Load(getBeansPath())
+		syncStore, err := loadSyncStore()
 		if err != nil {
 			return fmt.Errorf("loading sync state: %w", err)
 		}
@@ -88,7 +85,5 @@ func outputLinkJSON(bean *beans.Bean, taskID, action string) error {
 		"task_id":    taskID,
 		"action":     action,
 	}
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(result)
+	return outputJSON(result)
 }

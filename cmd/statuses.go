@@ -2,9 +2,7 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/STR-Consulting/bean-me-up/internal/clickup"
@@ -24,8 +22,8 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 		ctx := context.Background()
 
 		// Validate config
-		if cfg.Beans.ClickUp.ListID == "" {
-			return fmt.Errorf("ClickUp list_id is required in .beans.clickup.yml")
+		if err := requireListID(); err != nil {
+			return err
 		}
 
 		// Get ClickUp token
@@ -52,9 +50,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 }
 
 func outputStatusesJSON(statuses []clickup.Status) error {
-	enc := json.NewEncoder(os.Stdout)
-	enc.SetIndent("", "  ")
-	return enc.Encode(statuses)
+	return outputJSON(statuses)
 }
 
 func outputStatusesText(listName string, statuses []clickup.Status) error {

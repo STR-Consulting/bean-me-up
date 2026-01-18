@@ -120,14 +120,7 @@ func (c *Client) GetTask(ctx context.Context, taskID string) (*TaskInfo, error) 
 		return nil, fmt.Errorf("getting task: %w", err)
 	}
 
-	return &TaskInfo{
-		ID:          resp.ID,
-		Name:        resp.Name,
-		Description: resp.Description,
-		Status:      resp.Status,
-		URL:         resp.URL,
-		Parent:      resp.Parent,
-	}, nil
+	return resp.toTaskInfo(), nil
 }
 
 // CreateTask creates a new task in the given list.
@@ -150,14 +143,7 @@ func (c *Client) CreateTask(ctx context.Context, listID string, task *CreateTask
 		return nil, fmt.Errorf("creating task: %w", err)
 	}
 
-	return &TaskInfo{
-		ID:          resp.ID,
-		Name:        resp.Name,
-		Description: resp.Description,
-		Status:      resp.Status,
-		URL:         resp.URL,
-		Parent:      resp.Parent,
-	}, nil
+	return resp.toTaskInfo(), nil
 }
 
 // UpdateTask updates an existing task.
@@ -180,14 +166,7 @@ func (c *Client) UpdateTask(ctx context.Context, taskID string, update *UpdateTa
 		return nil, fmt.Errorf("updating task: %w", err)
 	}
 
-	return &TaskInfo{
-		ID:          resp.ID,
-		Name:        resp.Name,
-		Description: resp.Description,
-		Status:      resp.Status,
-		URL:         resp.URL,
-		Parent:      resp.Parent,
-	}, nil
+	return resp.toTaskInfo(), nil
 }
 
 // AddDependency adds a dependency to a task.

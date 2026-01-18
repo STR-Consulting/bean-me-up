@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"time"
@@ -111,9 +110,7 @@ func runCheck(cmd *cobra.Command, args []string) error {
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		return enc.Encode(output)
+		return outputJSON(output)
 	}
 
 	// Text output
