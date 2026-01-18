@@ -117,6 +117,13 @@ echo ""
 echo "=== Syncing beans ==="
 if command -v beanup &> /dev/null && [ -f .beans.clickup.yml ]; then
     beanup sync || echo "Warning: beanup sync failed (continuing anyway)"
+
+    # Include sync state changes in the commit
+    if [ -n "$(git status --porcelain .beans/.sync.json 2>/dev/null)" ]; then
+        echo "Including .beans/.sync.json in commit..."
+        git add .beans/.sync.json
+        git commit --amend --no-edit
+    fi
 else
     echo "Skipping beanup sync (not configured)"
 fi
