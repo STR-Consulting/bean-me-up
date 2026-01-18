@@ -31,10 +31,12 @@ beans:
 
     # Optional: Map bean types to ClickUp custom task type IDs
     # Run `beanup types` to see available task types
+    # Valid bean types: milestone, epic, feature, bug, task
     # type_mapping:
-    #   bug: 1          # Bug
-    #   milestone: 2    # Milestone
+    #   milestone: 1003 # Milestone
+    #   epic: 1002      # Epic
     #   feature: 0      # Task (default)
+    #   bug: 1001       # Bug
     #   task: 0         # Task (default)
 
     # Optional: Map bean fields to ClickUp custom field UUIDs

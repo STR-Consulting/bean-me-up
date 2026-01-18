@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 
+	"github.com/STR-Consulting/bean-me-up/internal/beans"
 	"github.com/STR-Consulting/bean-me-up/internal/clickup"
 	"github.com/spf13/cobra"
 )
@@ -66,14 +66,24 @@ func outputTypesText(items []clickup.CustomItem) error {
 		fmt.Println()
 	}
 
+	// Build a map of ClickUp types by lowercase name for matching
+	clickupTypes := make(map[string]clickup.CustomItem)
+	for _, item := range items {
+		clickupTypes[item.Name] = item
+	}
+
 	fmt.Println("Add these to your .beans.clickup.yml to map bean types:")
 	fmt.Println()
 	fmt.Println("  clickup:")
 	fmt.Println("    type_mapping:")
-	for _, item := range items {
-		// Convert ClickUp name to lowercase for bean type suggestion
-		beanType := strings.ToLower(item.Name)
-		fmt.Printf("      %s: %d  # %s\n", beanType, item.ID, item.Name)
+
+	// Show all standard bean types with suggested mappings
+	for _, beanType := range beans.StandardTypes {
+		if item, ok := clickupTypes[beanType]; ok {
+			fmt.Printf("      %s: %d  # %s\n", beanType, item.ID, item.Name)
+		} else {
+			fmt.Printf("      %s: 0  # Task (default)\n", beanType)
+		}
 	}
 
 	return nil

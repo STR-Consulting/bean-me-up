@@ -3,9 +3,11 @@ package config
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 
+	"github.com/STR-Consulting/bean-me-up/internal/beans"
 	"gopkg.in/yaml.v3"
 )
 
@@ -124,6 +126,19 @@ func Load(configPath string) (*Config, error) {
 	}
 	if cfg.Beans.ClickUp.PriorityMapping == nil {
 		cfg.Beans.ClickUp.PriorityMapping = DefaultPriorityMapping
+	}
+
+	// Validate type mapping keys are standard bean types
+	if cfg.Beans.ClickUp.TypeMapping != nil {
+		validMapping := make(map[string]int)
+		for beanType, clickupTypeID := range cfg.Beans.ClickUp.TypeMapping {
+			if beans.IsStandardType(beanType) {
+				validMapping[beanType] = clickupTypeID
+			} else {
+				log.Printf("Warning: ignoring invalid bean type %q in type_mapping (valid types: %v)", beanType, beans.StandardTypes)
+			}
+		}
+		cfg.Beans.ClickUp.TypeMapping = validMapping
 	}
 
 	return cfg, nil

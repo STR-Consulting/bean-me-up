@@ -2,8 +2,26 @@
 package beans
 
 import (
+	"slices"
 	"time"
 )
+
+// Standard bean types
+const (
+	TypeMilestone = "milestone"
+	TypeEpic      = "epic"
+	TypeFeature   = "feature"
+	TypeBug       = "bug"
+	TypeTask      = "task"
+)
+
+// StandardTypes is the list of all standard bean types.
+var StandardTypes = []string{TypeMilestone, TypeEpic, TypeFeature, TypeBug, TypeTask}
+
+// IsStandardType returns true if the given type is a standard bean type.
+func IsStandardType(t string) bool {
+	return slices.Contains(StandardTypes, t)
+}
 
 // Bean represents a bean from the beans CLI JSON output.
 type Bean struct {
