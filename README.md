@@ -2,6 +2,9 @@
 
 Sync [beans](https://github.com/hmans/beans) to ClickUp tasks.
 
+> [!NOTE]
+> 🤖 This project was initially set up with a carefully guided LLM (Claude Opus 4.5)
+
 ## Overview
 
 bean-me-up is a companion tool for the [beans](https://github.com/hmans/beans) issue tracker that syncs beans to ClickUp tasks. It:
