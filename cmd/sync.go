@@ -176,6 +176,13 @@ func outputResultsJSON(results []clickup.SyncResult) error {
 	return outputJSON(jsonResults)
 }
 
+func truncateTitle(title string, maxLen int) string {
+	if len(title) <= maxLen {
+		return title
+	}
+	return title[:maxLen] + "…"
+}
+
 func outputResultsText(results []clickup.SyncResult) error {
 	var created, updated, skipped, errors int
 
@@ -183,10 +190,10 @@ func outputResultsText(results []clickup.SyncResult) error {
 		switch r.Action {
 		case "created":
 			created++
-			fmt.Printf("  Created: %s → %s\n", r.BeanID, r.TaskURL)
+			fmt.Printf("  Created: %s → %s \"%s\"\n", r.BeanID, r.TaskURL, truncateTitle(r.BeanTitle, 20))
 		case "updated":
 			updated++
-			fmt.Printf("  Updated: %s → %s\n", r.BeanID, r.TaskURL)
+			fmt.Printf("  Updated: %s → %s \"%s\"\n", r.BeanID, r.TaskURL, truncateTitle(r.BeanTitle, 20))
 		case "skipped":
 			skipped++
 		case "would create":
