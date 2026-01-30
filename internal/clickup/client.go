@@ -59,6 +59,8 @@ type Client struct {
 	listInfo *List
 	// Cached authorized user
 	authorizedUser *AuthorizedUser
+	// Cached space tags (tag name -> true)
+	spaceTags map[string]bool
 }
 
 func (c *Client) getRetryConfig() RetryConfig {
@@ -101,6 +103,7 @@ func (c *Client) GetList(ctx context.Context, listID string) (*List, error) {
 	c.listInfo = &List{
 		ID:       resp.ID,
 		Name:     resp.Name,
+		SpaceID:  resp.Space.ID,
 		Statuses: resp.Statuses,
 	}
 
@@ -328,7 +331,8 @@ func (c *Client) CreateTaskComment(ctx context.Context, taskID string, commentIt
 }
 
 // AddTagToTask adds a tag to a task.
-// The tag is auto-created in the ClickUp space if it doesn't exist.
+// Note: This creates a task-level tag but does NOT register it as a space-level tag.
+// Use EnsureSpaceTag before this to make tags discoverable in the space tag picker.
 func (c *Client) AddTagToTask(ctx context.Context, taskID, tagName string) error {
 	url := fmt.Sprintf("%s/task/%s/tag/%s", baseURL, taskID, tagName)
 
@@ -358,6 +362,88 @@ func (c *Client) RemoveTagFromTask(ctx context.Context, taskID, tagName string) 
 	}
 
 	return nil
+}
+
+// spaceTagsResponse is the API response for getting space tags.
+type spaceTagsResponse struct {
+	Tags []Tag `json:"tags"`
+}
+
+// GetSpaceTags fetches all tags for a space.
+func (c *Client) GetSpaceTags(ctx context.Context, spaceID string) ([]Tag, error) {
+	url := fmt.Sprintf("%s/space/%s/tag", baseURL, spaceID)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+
+	var resp spaceTagsResponse
+	if err := c.doRequest(req, &resp); err != nil {
+		return nil, fmt.Errorf("getting space tags: %w", err)
+	}
+
+	return resp.Tags, nil
+}
+
+// CreateSpaceTag creates a tag at the space level so it appears in the tag picker.
+func (c *Client) CreateSpaceTag(ctx context.Context, spaceID, tagName string) error {
+	url := fmt.Sprintf("%s/space/%s/tag", baseURL, spaceID)
+
+	body, err := json.Marshal(map[string]any{"tag": map[string]string{"name": tagName}})
+	if err != nil {
+		return fmt.Errorf("marshaling request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("creating space tag: %w", err)
+	}
+
+	return nil
+}
+
+// PopulateSpaceTagCache fetches existing space tags into the client cache.
+func (c *Client) PopulateSpaceTagCache(ctx context.Context, spaceID string) error {
+	tags, err := c.GetSpaceTags(ctx, spaceID)
+	if err != nil {
+		return err
+	}
+
+	c.spaceTags = make(map[string]bool, len(tags))
+	for _, t := range tags {
+		c.spaceTags[t.Name] = true
+	}
+
+	return nil
+}
+
+// EnsureSpaceTag creates a tag at the space level if it doesn't already exist in the cache.
+func (c *Client) EnsureSpaceTag(ctx context.Context, spaceID, tagName string) error {
+	if c.spaceTags != nil && c.spaceTags[tagName] {
+		return nil
+	}
+
+	if err := c.CreateSpaceTag(ctx, spaceID, tagName); err != nil {
+		return err
+	}
+
+	if c.spaceTags == nil {
+		c.spaceTags = make(map[string]bool)
+	}
+	c.spaceTags[tagName] = true
+
+	return nil
+}
+
+// HasSpaceTag returns true if the tag exists in the space tag cache.
+// PopulateSpaceTagCache must be called first.
+func (c *Client) HasSpaceTag(tagName string) bool {
+	return c.spaceTags != nil && c.spaceTags[tagName]
 }
 
 // SetCustomFieldValue sets a custom field value on a task.
@@ -396,6 +482,11 @@ func (c *Client) doRequest(req *http.Request, result any) error {
 			return fmt.Errorf("reading request body: %w", err)
 		}
 		_ = req.Body.Close()
+	}
+
+	// Reset the body after reading so the first attempt has a valid body
+	if bodyBytes != nil {
+		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
 	}
 
 	var lastErr error

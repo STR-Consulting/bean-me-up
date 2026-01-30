@@ -287,6 +287,111 @@ func (rt *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error
 	return http.DefaultTransport.RoundTrip(req)
 }
 
+func TestSyncTags_EnsureSpaceTagBeforeAdd(t *testing.T) {
+	var calls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		path := r.URL.Path
+		// Space tag creation: POST /api/v2/space/{id}/tag (path ends with /tag, not /tag/{name})
+		if r.Method == "POST" && strings.Contains(path, "/space/") && strings.Contains(path, "/tag") && !strings.Contains(path, "/task/") {
+			calls = append(calls, "space-create")
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
+		// Task tag addition: POST /api/v2/task/{id}/tag/{tagName}
+		if r.Method == "POST" && strings.Contains(path, "/task/") && strings.Contains(path, "/tag/") {
+			parts := strings.Split(path, "/tag/")
+			calls = append(calls, "task-add:"+parts[len(parts)-1])
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer server.Close()
+
+	client := &Client{
+		token: "test",
+		httpClient: &http.Client{
+			Transport: &redirectTransport{target: server.URL},
+		},
+		spaceTags: make(map[string]bool), // empty cache
+	}
+
+	syncer := newTestSyncer(t, client)
+	syncer.spaceID = "space-1"
+
+	b := &beans.Bean{
+		ID:   "bean-1",
+		Tags: []string{"new-tag"},
+	}
+
+	syncer.syncTags(context.Background(), "task-1", b, nil)
+
+	// Verify space tag creation happens before task tag addition
+	expected := []string{"space-create", "task-add:new-tag"}
+	if !slicesEqual(calls, expected) {
+		t.Errorf("calls = %v, want %v", calls, expected)
+	}
+}
+
+func TestSyncTags_CachePreventsRedundantSpaceTagCreation(t *testing.T) {
+	var spaceCreateCalls int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" && strings.Contains(r.URL.Path, "/space/") && strings.HasSuffix(r.URL.Path, "/tag") {
+			spaceCreateCalls++
+		}
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer server.Close()
+
+	client := &Client{
+		token: "test",
+		httpClient: &http.Client{
+			Transport: &redirectTransport{target: server.URL},
+		},
+		spaceTags: map[string]bool{"cached-tag": true}, // pre-cached tag
+	}
+
+	syncer := newTestSyncer(t, client)
+	syncer.spaceID = "space-1"
+
+	// Sync a bean with an already-cached tag
+	b := &beans.Bean{
+		ID:   "bean-1",
+		Tags: []string{"cached-tag"},
+	}
+	syncer.syncTags(context.Background(), "task-1", b, nil)
+
+	if spaceCreateCalls != 0 {
+		t.Errorf("expected 0 space tag creations for cached tag, got %d", spaceCreateCalls)
+	}
+
+	// Now sync a bean with a new tag - should create once
+	b2 := &beans.Bean{
+		ID:   "bean-2",
+		Tags: []string{"new-tag"},
+	}
+	syncer.syncTags(context.Background(), "task-2", b2, nil)
+
+	if spaceCreateCalls != 1 {
+		t.Errorf("expected 1 space tag creation for new tag, got %d", spaceCreateCalls)
+	}
+
+	// Sync same new tag again - should not create again (now cached)
+	b3 := &beans.Bean{
+		ID:   "bean-3",
+		Tags: []string{"new-tag"},
+	}
+	syncer.syncTags(context.Background(), "task-3", b3, nil)
+
+	if spaceCreateCalls != 1 {
+		t.Errorf("expected still 1 space tag creation (cached), got %d", spaceCreateCalls)
+	}
+}
+
 func slicesEqual(a, b []string) bool {
 	if len(a) == 0 && len(b) == 0 {
 		return true

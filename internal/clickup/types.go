@@ -42,6 +42,7 @@ type Status struct {
 type List struct {
 	ID       string   `json:"id"`
 	Name     string   `json:"name"`
+	SpaceID  string   `json:"-"` // Populated from nested space object in API response
 	Statuses []Status `json:"statuses"`
 }
 
@@ -136,6 +137,9 @@ type listResponse struct {
 	ID       string   `json:"id"`
 	Name     string   `json:"name"`
 	Statuses []Status `json:"statuses"`
+	Space    struct {
+		ID string `json:"id"`
+	} `json:"space"`
 }
 
 // errorResponse represents a ClickUp API error.

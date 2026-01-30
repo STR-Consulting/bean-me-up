@@ -49,6 +49,9 @@ type Syncer struct {
 
 	// Tracking for relationship pass
 	beanToTaskID map[string]string // bean ID -> ClickUp task ID
+
+	// Space ID for space-level tag management
+	spaceID string
 }
 
 // NewSyncer creates a new syncer with the given client and options.
@@ -73,6 +76,15 @@ func (s *Syncer) SyncBeans(ctx context.Context, beanList []beans.Bean) ([]SyncRe
 	if _, err := s.client.GetAuthorizedUser(ctx); err != nil {
 		// Non-fatal - will just create unassigned tasks if this fails
 		_ = err
+	}
+
+	// Pre-fetch list info for space ID, then populate space tag cache
+	if list, err := s.client.GetList(ctx, s.opts.ListID); err == nil && list.SpaceID != "" {
+		s.spaceID = list.SpaceID
+		if err := s.client.PopulateSpaceTagCache(ctx, s.spaceID); err != nil {
+			// Non-fatal - tags will still be added at task level
+			_ = err
+		}
 	}
 
 	// Pre-populate mapping with already-synced beans from sync store
@@ -669,6 +681,12 @@ func (s *Syncer) syncTags(ctx context.Context, taskID string, b *beans.Bean, cur
 	// Add missing tags
 	for _, t := range b.Tags {
 		if !current[t] {
+			// Ensure tag exists at space level so it's discoverable in the tag picker
+			if s.spaceID != "" {
+				if err := s.client.EnsureSpaceTag(ctx, s.spaceID, t); err != nil {
+					_ = err // Best-effort
+				}
+			}
 			if err := s.client.AddTagToTask(ctx, taskID, t); err != nil {
 				_ = err // Best-effort
 			} else {
