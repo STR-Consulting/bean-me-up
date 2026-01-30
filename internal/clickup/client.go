@@ -327,6 +327,39 @@ func (c *Client) CreateTaskComment(ctx context.Context, taskID string, commentIt
 	return nil
 }
 
+// AddTagToTask adds a tag to a task.
+// The tag is auto-created in the ClickUp space if it doesn't exist.
+func (c *Client) AddTagToTask(ctx context.Context, taskID, tagName string) error {
+	url := fmt.Sprintf("%s/task/%s/tag/%s", baseURL, taskID, tagName)
+
+	req, err := http.NewRequestWithContext(ctx, "POST", url, nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("adding tag: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveTagFromTask removes a tag from a task.
+func (c *Client) RemoveTagFromTask(ctx context.Context, taskID, tagName string) error {
+	url := fmt.Sprintf("%s/task/%s/tag/%s", baseURL, taskID, tagName)
+
+	req, err := http.NewRequestWithContext(ctx, "DELETE", url, nil)
+	if err != nil {
+		return fmt.Errorf("creating request: %w", err)
+	}
+
+	if err := c.doRequest(req, nil); err != nil {
+		return fmt.Errorf("removing tag: %w", err)
+	}
+
+	return nil
+}
+
 // SetCustomFieldValue sets a custom field value on a task.
 func (c *Client) SetCustomFieldValue(ctx context.Context, taskID, fieldID string, value any) error {
 	url := fmt.Sprintf("%s/task/%s/field/%s", baseURL, taskID, fieldID)

@@ -247,10 +247,13 @@ func (s *Syncer) syncBean(ctx context.Context, b *beans.Bean) SyncResult {
 			// Update custom fields only if changed (best-effort)
 			customFieldsUpdated := s.updateChangedCustomFields(ctx, task, *taskID, b)
 
+			// Sync tags (best-effort)
+			tagsChanged := s.syncTags(ctx, *taskID, b, task.Tags)
+
 			// Update synced_at timestamp in sync store
 			s.syncStore.SetSyncedAt(b.ID, time.Now().UTC())
 
-			if update.hasChanges() || customFieldsUpdated {
+			if update.hasChanges() || customFieldsUpdated || tagsChanged {
 				result.Action = "updated"
 			} else {
 				result.Action = "unchanged"
@@ -292,6 +295,9 @@ func (s *Syncer) syncBean(ctx context.Context, b *beans.Bean) SyncResult {
 	result.TaskID = task.ID
 	result.TaskURL = task.URL
 	s.beanToTaskID[b.ID] = task.ID
+
+	// Sync tags for new task (no existing tags to remove)
+	s.syncTags(ctx, task.ID, b, nil)
 
 	// Create mention comment if there are @mentions in the body
 	if len(mentions) > 0 {
@@ -641,6 +647,48 @@ func (s *Syncer) getClickUpCustomItemID(beanType string) *int {
 	}
 
 	return nil
+}
+
+// syncTags syncs bean tags to ClickUp task tags.
+// Returns true if any tags were added or removed.
+func (s *Syncer) syncTags(ctx context.Context, taskID string, b *beans.Bean, currentTags []Tag) bool {
+	// Build set of current ClickUp tag names
+	current := make(map[string]bool)
+	for _, t := range currentTags {
+		current[t.Name] = true
+	}
+
+	// Build set of desired bean tag names
+	desired := make(map[string]bool)
+	for _, t := range b.Tags {
+		desired[t] = true
+	}
+
+	changed := false
+
+	// Add missing tags
+	for _, t := range b.Tags {
+		if !current[t] {
+			if err := s.client.AddTagToTask(ctx, taskID, t); err != nil {
+				_ = err // Best-effort
+			} else {
+				changed = true
+			}
+		}
+	}
+
+	// Remove extra tags
+	for _, t := range currentTags {
+		if !desired[t.Name] {
+			if err := s.client.RemoveTagFromTask(ctx, taskID, t.Name); err != nil {
+				_ = err // Best-effort
+			} else {
+				changed = true
+			}
+		}
+	}
+
+	return changed
 }
 
 // syncRelationships syncs parent/blocking relationships for a bean.

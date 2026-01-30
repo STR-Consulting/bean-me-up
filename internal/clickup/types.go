@@ -12,6 +12,7 @@ type TaskInfo struct {
 	Priority     *TaskPriority      `json:"priority"`       // ClickUp priority (nil = no priority)
 	CustomItemID *int               `json:"custom_item_id"` // Custom task type ID
 	CustomFields []TaskCustomField  `json:"custom_fields"`  // Custom field values
+	Tags         []Tag              `json:"tags"`           // Task tags
 }
 
 // TaskPriority represents a ClickUp task priority.
@@ -24,6 +25,11 @@ type TaskCustomField struct {
 	ID    string `json:"id"`
 	Name  string `json:"name"`
 	Value any    `json:"value"` // Can be string, number, etc. depending on field type
+}
+
+// Tag represents a ClickUp task tag.
+type Tag struct {
+	Name string `json:"name"`
 }
 
 // Status represents a ClickUp task status.
@@ -106,6 +112,7 @@ type taskResponse struct {
 	Priority     *TaskPriority     `json:"priority"`
 	CustomItemID *int              `json:"custom_item_id"`
 	CustomFields []TaskCustomField `json:"custom_fields"`
+	Tags         []Tag             `json:"tags"`
 }
 
 // toTaskInfo converts a taskResponse to a TaskInfo.
@@ -120,6 +127,7 @@ func (r *taskResponse) toTaskInfo() *TaskInfo {
 		Priority:     r.Priority,
 		CustomItemID: r.CustomItemID,
 		CustomFields: r.CustomFields,
+		Tags:         r.Tags,
 	}
 }
 

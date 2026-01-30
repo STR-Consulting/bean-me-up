@@ -1,0 +1,303 @@
+package clickup
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"sort"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/STR-Consulting/bean-me-up/internal/beans"
+	"github.com/STR-Consulting/bean-me-up/internal/config"
+	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
+)
+
+func mustLoadStore(t *testing.T) *syncstate.Store {
+	t.Helper()
+	dir := t.TempDir()
+	store, err := syncstate.Load(dir)
+	if err != nil {
+		t.Fatalf("failed to load store: %v", err)
+	}
+	return store
+}
+
+func newTestSyncer(t *testing.T, client *Client) *Syncer {
+	t.Helper()
+	return &Syncer{
+		client:       client,
+		config:       &config.ClickUpConfig{},
+		opts:         SyncOptions{ListID: "test-list"},
+		syncStore:    mustLoadStore(t),
+		beanToTaskID: make(map[string]string),
+	}
+}
+
+func TestSyncTags_SetDiff(t *testing.T) {
+	var calls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(r.URL.Path, "/tag/")
+		if len(parts) == 2 {
+			calls = append(calls, r.Method+" "+parts[1])
+		}
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer server.Close()
+
+	client := &Client{
+		token: "test",
+		httpClient: &http.Client{
+			Transport: &redirectTransport{target: server.URL},
+		},
+	}
+
+	syncer := newTestSyncer(t, client)
+
+	tests := []struct {
+		name        string
+		beanTags    []string
+		currentTags []Tag
+		wantAdds    []string
+		wantRemoves []string
+		wantChanged bool
+	}{
+		{
+			name:        "add all tags to new task",
+			beanTags:    []string{"urgent", "backend"},
+			currentTags: nil,
+			wantAdds:    []string{"backend", "urgent"},
+			wantChanged: true,
+		},
+		{
+			name:        "remove extra tags",
+			beanTags:    nil,
+			currentTags: []Tag{{Name: "old-tag"}},
+			wantRemoves: []string{"old-tag"},
+			wantChanged: true,
+		},
+		{
+			name:        "add and remove tags",
+			beanTags:    []string{"keep", "new-tag"},
+			currentTags: []Tag{{Name: "keep"}, {Name: "old-tag"}},
+			wantAdds:    []string{"new-tag"},
+			wantRemoves: []string{"old-tag"},
+			wantChanged: true,
+		},
+		{
+			name:        "no changes when tags match",
+			beanTags:    []string{"a", "b"},
+			currentTags: []Tag{{Name: "a"}, {Name: "b"}},
+			wantChanged: false,
+		},
+		{
+			name:        "no changes when both empty",
+			beanTags:    nil,
+			currentTags: nil,
+			wantChanged: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			calls = nil
+
+			b := &beans.Bean{
+				ID:   "bean-1",
+				Tags: tt.beanTags,
+			}
+
+			changed := syncer.syncTags(context.Background(), "task-1", b, tt.currentTags)
+
+			if changed != tt.wantChanged {
+				t.Errorf("changed = %v, want %v", changed, tt.wantChanged)
+			}
+
+			var gotAdds, gotRemoves []string
+			for _, call := range calls {
+				parts := strings.SplitN(call, " ", 2)
+				switch parts[0] {
+				case "POST":
+					gotAdds = append(gotAdds, parts[1])
+				case "DELETE":
+					gotRemoves = append(gotRemoves, parts[1])
+				}
+			}
+
+			sort.Strings(gotAdds)
+			sort.Strings(gotRemoves)
+
+			if !slicesEqual(gotAdds, tt.wantAdds) {
+				t.Errorf("added tags = %v, want %v", gotAdds, tt.wantAdds)
+			}
+			if !slicesEqual(gotRemoves, tt.wantRemoves) {
+				t.Errorf("removed tags = %v, want %v", gotRemoves, tt.wantRemoves)
+			}
+		})
+	}
+}
+
+func TestSyncBean_CreateWithTags(t *testing.T) {
+	var tagCalls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "POST" && strings.Contains(r.URL.Path, "/list/") {
+			resp := taskResponse{
+				ID:     "task-123",
+				Name:   "Test",
+				Status: Status{Status: "to do"},
+				URL:    "https://app.clickup.com/t/task-123",
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		if strings.Contains(r.URL.Path, "/tag/") {
+			parts := strings.Split(r.URL.Path, "/tag/")
+			tagCalls = append(tagCalls, r.Method+" "+parts[len(parts)-1])
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
+		if r.URL.Path == "/api/v2/user" {
+			resp := userResponse{User: AuthorizedUser{ID: 1, Username: "test"}}
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer server.Close()
+
+	client := &Client{
+		token: "test",
+		httpClient: &http.Client{
+			Transport: &redirectTransport{target: server.URL},
+		},
+	}
+
+	syncer := newTestSyncer(t, client)
+
+	now := time.Now()
+	b := &beans.Bean{
+		ID:        "bean-1",
+		Title:     "Test bean",
+		Status:    "todo",
+		Type:      "task",
+		Tags:      []string{"frontend", "urgent"},
+		CreatedAt: &now,
+		UpdatedAt: &now,
+	}
+
+	result := syncer.syncBean(context.Background(), b)
+
+	if result.Action != "created" {
+		t.Fatalf("expected action 'created', got %q", result.Action)
+	}
+
+	sort.Strings(tagCalls)
+	expectedCalls := []string{"POST frontend", "POST urgent"}
+	sort.Strings(expectedCalls)
+
+	if !slicesEqual(tagCalls, expectedCalls) {
+		t.Errorf("tag calls = %v, want %v", tagCalls, expectedCalls)
+	}
+}
+
+func TestSyncBean_UpdateWithTagChanges(t *testing.T) {
+	var tagCalls []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" && strings.Contains(r.URL.Path, "/task/") {
+			resp := taskResponse{
+				ID:     "task-123",
+				Name:   "Test bean",
+				Status: Status{Status: "to do"},
+				URL:    "https://app.clickup.com/t/task-123",
+				Tags:   []Tag{{Name: "old-tag"}, {Name: "keep"}},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		if strings.Contains(r.URL.Path, "/tag/") {
+			parts := strings.Split(r.URL.Path, "/tag/")
+			tagCalls = append(tagCalls, r.Method+" "+parts[len(parts)-1])
+			w.WriteHeader(200)
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
+		w.WriteHeader(200)
+		_, _ = w.Write([]byte("{}"))
+	}))
+	defer server.Close()
+
+	client := &Client{
+		token: "test",
+		httpClient: &http.Client{
+			Transport: &redirectTransport{target: server.URL},
+		},
+	}
+
+	store := mustLoadStore(t)
+	store.SetTaskID("bean-1", "task-123")
+	syncer := &Syncer{
+		client:       client,
+		config:       &config.ClickUpConfig{},
+		opts:         SyncOptions{ListID: "test-list", Force: true},
+		syncStore:    store,
+		beanToTaskID: make(map[string]string),
+	}
+
+	now := time.Now()
+	b := &beans.Bean{
+		ID:        "bean-1",
+		Title:     "Test bean",
+		Status:    "todo",
+		Type:      "task",
+		Tags:      []string{"keep", "new-tag"},
+		CreatedAt: &now,
+		UpdatedAt: &now,
+	}
+
+	result := syncer.syncBean(context.Background(), b)
+
+	if result.Action != "updated" {
+		t.Fatalf("expected action 'updated', got %q", result.Action)
+	}
+
+	sort.Strings(tagCalls)
+	expectedCalls := []string{"DELETE old-tag", "POST new-tag"}
+	sort.Strings(expectedCalls)
+
+	if !slicesEqual(tagCalls, expectedCalls) {
+		t.Errorf("tag calls = %v, want %v", tagCalls, expectedCalls)
+	}
+}
+
+// redirectTransport redirects all requests to the test server.
+type redirectTransport struct {
+	target string
+}
+
+func (rt *redirectTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req.URL.Scheme = "http"
+	req.URL.Host = strings.TrimPrefix(rt.target, "http://")
+	return http.DefaultTransport.RoundTrip(req)
+}
+
+func slicesEqual(a, b []string) bool {
+	if len(a) == 0 && len(b) == 0 {
+		return true
+	}
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
