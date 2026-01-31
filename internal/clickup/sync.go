@@ -3,7 +3,6 @@ package clickup
 import (
 	"context"
 	"fmt"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -12,9 +11,6 @@ import (
 	"github.com/STR-Consulting/bean-me-up/internal/config"
 	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
 )
-
-// mentionPattern matches @username patterns in text.
-var mentionPattern = regexp.MustCompile(`@([a-zA-Z0-9_-]+)`)
 
 // SyncResult holds the result of syncing a single bean.
 type SyncResult struct {
@@ -198,11 +194,8 @@ func (s *Syncer) syncBean(ctx context.Context, b *beans.Bean) SyncResult {
 		BeanTitle: b.Title,
 	}
 
-	// Build the task description (markdown, with mentions stripped)
+	// Build the task description
 	description := s.buildTaskDescription(b)
-
-	// Extract mentions from original body for comment creation
-	mentions := s.extractMentions(b.Body)
 
 	// Map bean status to ClickUp status
 	clickUpStatus := s.getClickUpStatus(b.Status)
@@ -311,14 +304,6 @@ func (s *Syncer) syncBean(ctx context.Context, b *beans.Bean) SyncResult {
 	// Sync tags for new task (no existing tags to remove)
 	s.syncTags(ctx, task.ID, b, nil)
 
-	// Create mention comment if there are @mentions in the body
-	if len(mentions) > 0 {
-		if err := s.createMentionComment(ctx, task.ID, mentions); err != nil {
-			// Log but don't fail - mentions are best-effort
-			_ = err
-		}
-	}
-
 	// Store task ID and sync timestamp in sync store
 	s.syncStore.SetTaskID(b.ID, task.ID)
 	s.syncStore.SetSyncedAt(b.ID, time.Now().UTC())
@@ -340,36 +325,8 @@ func (s *Syncer) needsSync(b *beans.Bean) bool {
 }
 
 // buildTaskDescription builds the ClickUp task markdown description from a bean.
-// Note: @mentions are stripped from the body since they don't work in descriptions.
-// Mentions are handled separately via task comments.
 func (s *Syncer) buildTaskDescription(b *beans.Bean) string {
-	// Return the bean body with mentions stripped
-	return s.stripMentions(b.Body)
-}
-
-// extractMentions finds all @username mentions in the text.
-// Returns unique usernames found (without the @ prefix).
-func (s *Syncer) extractMentions(text string) []string {
-	matches := mentionPattern.FindAllStringSubmatch(text, -1)
-	if len(matches) == 0 {
-		return nil
-	}
-
-	seen := make(map[string]bool)
-	var usernames []string
-	for _, match := range matches {
-		username := match[1]
-		if !seen[username] {
-			seen[username] = true
-			usernames = append(usernames, username)
-		}
-	}
-	return usernames
-}
-
-// stripMentions removes @username patterns from text.
-func (s *Syncer) stripMentions(text string) string {
-	return mentionPattern.ReplaceAllString(text, "")
+	return b.Body
 }
 
 // getClickUpPriority maps a bean priority to a ClickUp priority value.
@@ -439,43 +396,6 @@ func toLocalDateMillis(t time.Time) int64 {
 	local := t.Local()
 	midnight := time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, time.Local)
 	return midnight.UnixMilli()
-}
-
-// createMentionComment creates a task comment with @mentions for the given usernames.
-// Only creates a comment if there are valid user mappings configured.
-func (s *Syncer) createMentionComment(ctx context.Context, taskID string, usernames []string) error {
-	if s.config == nil || s.config.Users == nil || len(usernames) == 0 {
-		return nil
-	}
-
-	// Build comment items with mentions
-	var items []CommentItem
-	items = append(items, CommentItem{Text: "Mentioned: "})
-
-	mentionCount := 0
-	for i, username := range usernames {
-		userID, ok := s.config.Users[username]
-		if !ok {
-			continue // Skip unmapped users
-		}
-
-		if i > 0 && mentionCount > 0 {
-			items = append(items, CommentItem{Text: " "})
-		}
-
-		items = append(items, CommentItem{
-			Type: "tag",
-			User: &CommentUser{ID: userID},
-		})
-		mentionCount++
-	}
-
-	// Only create comment if we have at least one valid mention
-	if mentionCount == 0 {
-		return nil
-	}
-
-	return s.client.CreateTaskComment(ctx, taskID, items)
 }
 
 // getAssignees returns the assignee list for task creation.

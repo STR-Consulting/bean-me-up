@@ -236,34 +236,6 @@ func (c *Client) GetAccessibleCustomFields(ctx context.Context, listID string) (
 	return resp.Fields, nil
 }
 
-// GetWorkspaceMembers fetches members from all accessible workspaces.
-func (c *Client) GetWorkspaceMembers(ctx context.Context) ([]Member, error) {
-	url := fmt.Sprintf("%s/team", baseURL)
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
-	}
-
-	var resp teamsResponse
-	if err := c.doRequest(req, &resp); err != nil {
-		return nil, fmt.Errorf("getting teams: %w", err)
-	}
-
-	// Collect unique members from all teams
-	seen := make(map[int]bool)
-	var members []Member
-	for _, team := range resp.Teams {
-		for _, tm := range team.Members {
-			if !seen[tm.User.ID] {
-				seen[tm.User.ID] = true
-				members = append(members, tm.User)
-			}
-		}
-	}
-
-	return members, nil
-}
-
 // GetCustomItems fetches custom task types from all accessible workspaces.
 // Returns custom items with their IDs, names, and descriptions.
 func (c *Client) GetCustomItems(ctx context.Context) ([]CustomItem, error) {
@@ -304,30 +276,6 @@ func (c *Client) GetCustomItems(ctx context.Context) ([]CustomItem, error) {
 	}
 
 	return items, nil
-}
-
-// CreateTaskComment creates a comment on a task with structured content (supports mentions).
-func (c *Client) CreateTaskComment(ctx context.Context, taskID string, commentItems []CommentItem) error {
-	url := fmt.Sprintf("%s/task/%s/comment", baseURL, taskID)
-
-	body, err := json.Marshal(&createCommentRequest{
-		Comment: commentItems,
-	})
-	if err != nil {
-		return fmt.Errorf("marshaling request: %w", err)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
-	if err != nil {
-		return fmt.Errorf("creating request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	if err := c.doRequest(req, nil); err != nil {
-		return fmt.Errorf("creating comment: %w", err)
-	}
-
-	return nil
 }
 
 // AddTagToTask adds a tag to a task.

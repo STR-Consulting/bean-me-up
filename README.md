@@ -2,9 +2,6 @@
 
 Sync [beans](https://github.com/hmans/beans) to ClickUp tasks.
 
-> [!NOTE]
-> 🤖 This project was initially set up with a carefully guided LLM (Claude Opus 4.5)
-
 ## Overview
 
 bean-me-up is a companion tool for the [beans](https://github.com/hmans/beans) issue tracker that syncs beans to ClickUp tasks. It:
@@ -75,8 +72,6 @@ beans:
       bean_id: "field-uuid"
       created_at: "field-uuid"
       updated_at: "field-uuid"
-    users:                        # Optional: for @mention support
-      jason: 12345
     sync_filter:
       exclude_status:
         - scrapped
@@ -90,9 +85,6 @@ beanup statuses
 
 # List custom fields and their IDs
 beanup fields
-
-# List workspace members and their IDs
-beanup users
 
 # List custom task types and their IDs
 beanup types
@@ -113,7 +105,7 @@ beanup init
 beanup init --output custom.yml 123456789
 ```
 
-The init command fetches your list's statuses, custom fields, and workspace members to generate a config file with helpful comments and examples.
+The init command fetches your list's statuses, custom fields, and custom task types to generate a config file with helpful comments and examples.
 
 ### Sync Beans to ClickUp
 
@@ -187,12 +179,14 @@ The check command validates:
    - Status mapped according to `status_mapping`
    - Priority mapped (critical→Urgent, high→High, etc.)
    - Task type mapped according to `type_mapping` (bug→Bug, milestone→Milestone, etc.)
+   - Tags synced to ClickUp task tags (also registered as space-level tags)
    - Parent/subtask relationships if the parent bean is also synced
    - Custom fields if configured
 
 2. **Existing beans** update their linked ClickUp tasks when:
    - The bean's `updated_at` is newer than `synced_at`
    - Or `--force` is used
+   - Tags are added/removed to match the bean's current tags
 
 3. **Relationships** are synced as ClickUp dependencies:
    - Bean A `blocking: [B, C]` → Tasks B and C depend on task A
@@ -274,18 +268,6 @@ custom_fields:
   created_at: "uuid"   # Date field for creation time
   updated_at: "uuid"   # Date field for last update
 ```
-
-### `beans.clickup.users`
-
-Map usernames to ClickUp user IDs for @mention support:
-
-```yaml
-users:
-  jason: 12345
-  sarah: 67890
-```
-
-When syncing, @mentions in bean bodies create a comment tagging the users.
 
 ### `beans.clickup.sync_filter`
 

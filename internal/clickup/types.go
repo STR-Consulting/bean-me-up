@@ -162,18 +162,6 @@ type fieldsResponse struct {
 	Fields []FieldInfo `json:"fields"`
 }
 
-// Member represents a workspace member.
-type Member struct {
-	ID       int    `json:"id"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-}
-
-// teamMember is used for parsing the team members API response.
-type teamMember struct {
-	User Member `json:"user"`
-}
-
 // teamsResponse is the API response for getting teams.
 type teamsResponse struct {
 	Teams []teamInfo `json:"teams"`
@@ -181,27 +169,8 @@ type teamsResponse struct {
 
 // teamInfo represents a team/workspace.
 type teamInfo struct {
-	ID      string       `json:"id"`
-	Name    string       `json:"name"`
-	Members []teamMember `json:"members"`
-}
-
-// CommentItem represents an item in a structured comment.
-type CommentItem struct {
-	Text string       `json:"text,omitempty"`
-	Type string       `json:"type,omitempty"` // "tag" for mentions
-	User *CommentUser `json:"user,omitempty"`
-}
-
-// CommentUser represents a user reference in a comment mention.
-type CommentUser struct {
-	ID int `json:"id"`
-}
-
-// createCommentRequest is the request body for creating a task comment.
-// For mentions to work, we need to use "comment" as an array, not "comment_text".
-type createCommentRequest struct {
-	Comment []CommentItem `json:"comment"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // AuthorizedUser represents the authenticated user from the API token.

@@ -36,7 +36,7 @@ type ClickUpConfig struct {
 	PriorityMapping map[string]int    `yaml:"priority_mapping,omitempty"`
 	TypeMapping     map[string]int    `yaml:"type_mapping,omitempty"`
 	CustomFields    *CustomFieldsMap  `yaml:"custom_fields,omitempty"`
-	Users           map[string]int    `yaml:"users,omitempty"`
+
 	SyncFilter      *SyncFilter       `yaml:"sync_filter,omitempty"`
 }
 

@@ -265,15 +265,6 @@ func checkConfiguration(ctx context.Context) checkSection {
 		})
 	}
 
-	// Check users
-	if len(cfg.Beans.ClickUp.Users) > 0 {
-		section.Checks = append(section.Checks, checkResult{
-			Name:    "Users configured",
-			Status:  checkPass,
-			Message: fmt.Sprintf("%d users", len(cfg.Beans.ClickUp.Users)),
-		})
-	}
-
 	return section
 }
 

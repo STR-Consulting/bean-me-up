@@ -46,12 +46,6 @@ beans:
     #   created_at: "uuid-for-date-field"
     #   updated_at: "uuid-for-date-field"
 
-    # Optional: Map usernames to ClickUp user IDs for @mention support
-    # Run `beanup users` to see workspace members
-    # users:
-    #   jason: 12345
-    #   sarah: 67890
-
     # Optional: Control which beans are synced
     sync_filter:
       exclude_status:
