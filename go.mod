@@ -4,12 +4,10 @@ go 1.24.6
 
 require (
 	github.com/fatih/color v1.18.0
-	github.com/hmans/beans v0.0.0
 	github.com/spf13/cobra v1.10.2
+	github.com/toba/beans v0.11.0
 	gopkg.in/yaml.v3 v3.0.1
 )
-
-replace github.com/hmans/beans => ../beans
 
 require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect

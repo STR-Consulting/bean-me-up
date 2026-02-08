@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/hmans/beans/pkg/client"
+	"github.com/toba/beans/pkg/client"
 )
 
 // ExtensionDataOp is an alias for the beans client package type.
