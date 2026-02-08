@@ -5,10 +5,10 @@ status: in-progress
 type: feature
 priority: normal
 created_at: 2026-01-30T18:55:15Z
-updated_at: 2026-02-08T23:11:25Z
+updated_at: 2026-02-08T23:56:53Z
 extensions:
     clickup:
-        synced_at: "2026-02-08T22:25:52Z"
+        synced_at: "2026-02-08T23:56:52Z"
         task_id: 868ha7twn
 ---
 

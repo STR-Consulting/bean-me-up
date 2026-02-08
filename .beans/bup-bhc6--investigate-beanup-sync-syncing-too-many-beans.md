@@ -5,10 +5,10 @@ status: completed
 type: bug
 priority: normal
 created_at: 2026-01-18T20:51:39Z
-updated_at: 2026-02-08T23:11:25Z
+updated_at: 2026-02-08T23:56:53Z
 extensions:
     clickup:
-        synced_at: "2026-01-19T19:05:53Z"
+        synced_at: "2026-02-08T23:56:53Z"
         task_id: 868h4kb90
 ---
 

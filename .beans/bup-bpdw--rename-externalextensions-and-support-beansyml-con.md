@@ -5,7 +5,11 @@ status: completed
 type: task
 priority: normal
 created_at: 2026-02-08T22:59:28Z
-updated_at: 2026-02-08T23:04:24Z
+updated_at: 2026-02-08T23:56:53Z
+extensions:
+    clickup:
+        synced_at: "2026-02-08T23:56:52Z"
+        task_id: 868hdrpba
 ---
 
 Update bean-me-up to conform to beans extension config changes: rename external→extensions across all layers, and support reading config from .beans.yml extensions section with fallback to legacy .beans.clickup.yml
