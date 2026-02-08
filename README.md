@@ -7,19 +7,19 @@ Sync [beans](https://github.com/hmans/beans) to ClickUp tasks.
 bean-me-up is a companion tool for the [beans](https://github.com/hmans/beans) issue tracker that syncs beans to ClickUp tasks. It:
 
 - Calls the standard `beans` CLI with `--json` output (no internal library dependency)
-- Stores sync state in `.beans/.sync.json` (never modifies bean files)
+- Stores sync state in bean external metadata (via the beans plugin system)
 - Works alongside standard beans without modification
 
 ## Installation
 
 ```bash
-go install github.com/STR-Consulting/bean-me-up/cmd/beanup@latest
+go install github.com/toba/bean-me-up/cmd/beanup@latest
 ```
 
 Or build from source:
 
 ```bash
-git clone https://github.com/STR-Consulting/bean-me-up
+git clone https://github.com/toba/bean-me-up
 cd bean-me-up
 go build ./cmd/beanup
 ```
@@ -169,7 +169,7 @@ The check command validates:
 - Type mapping is configured (warning if not)
 - Custom field UUIDs exist (if configured)
 - CLICKUP_TOKEN is valid
-- Sync state file is valid
+- Sync state (bean external metadata) is valid
 - All linked tasks exist in ClickUp
 
 ## How Sync Works
@@ -191,20 +191,29 @@ The check command validates:
 3. **Relationships** are synced as ClickUp dependencies:
    - Bean A `blocking: [B, C]` → Tasks B and C depend on task A
 
-4. **Sync state** is stored in `.beans/.sync.json` (not in bean files):
-   ```json
-   {
-     "beans": {
-       "bean-abc1": {
-         "clickup": {
-           "task_id": "868h4abcd",
-           "synced_at": "2024-01-15T10:30:00Z"
-         }
-       }
-     }
-   }
+4. **Sync state** is stored in each bean's external metadata (YAML frontmatter):
+   ```yaml
+   external:
+     clickup:
+       task_id: "868h4abcd"
+       synced_at: "2024-01-15T10:30:00Z"
    ```
-   This avoids conflicts with the beans CLI which overwrites frontmatter.
+   This uses the beans plugin system to store sync data alongside each bean.
+
+### Migrating from .sync.json
+
+If you're upgrading from a version that used `.beans/.sync.json`:
+
+```bash
+# Preview the migration
+beanup migrate --dry-run
+
+# Run the migration
+beanup migrate
+
+# Run and delete the legacy file
+beanup migrate --delete-sync-file
+```
 
 ## Configuration Reference
 

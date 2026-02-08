@@ -3,15 +3,15 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/STR-Consulting/bean-me-up/internal/beans"
+	"github.com/toba/bean-me-up/internal/beans"
 	"github.com/spf13/cobra"
 )
 
 var unlinkCmd = &cobra.Command{
 	Use:   "unlink <bean-id>",
 	Short: "Remove the link between a bean and its ClickUp task",
-	Long: `Removes the ClickUp sync state for a bean from the sync state file
-(.beans/.sync.json), unlinking it from its associated ClickUp task.
+	Long: `Removes the ClickUp sync metadata from a bean's external data,
+unlinking it from its associated ClickUp task.
 
 Note: This does not delete or modify the ClickUp task itself.`,
 	Args: cobra.ExactArgs(1),
@@ -25,15 +25,9 @@ Note: This does not delete or modify the ClickUp task itself.`,
 			return fmt.Errorf("bean not found: %s", beanID)
 		}
 
-		// Load sync state store
-		syncStore, err := loadSyncStore()
-		if err != nil {
-			return fmt.Errorf("loading sync state: %w", err)
-		}
-
 		// Check if linked
-		taskID := syncStore.GetTaskID(beanID)
-		if taskID == nil {
+		taskID := bean.GetExternalString(beans.PluginClickUp, beans.ExtKeyTaskID)
+		if taskID == "" {
 			if jsonOut {
 				return outputUnlinkJSON(bean, "", "not_linked")
 			}
@@ -41,19 +35,16 @@ Note: This does not delete or modify the ClickUp task itself.`,
 			return nil
 		}
 
-		oldTaskID := *taskID
-
-		// Clear the sync state
-		syncStore.Clear(beanID)
-		if err := syncStore.Save(); err != nil {
-			return fmt.Errorf("saving sync state: %w", err)
+		// Remove external data
+		if err := beansClient.RemoveExternalData(beanID, beans.PluginClickUp); err != nil {
+			return fmt.Errorf("removing sync state: %w", err)
 		}
 
 		if jsonOut {
-			return outputUnlinkJSON(bean, oldTaskID, "unlinked")
+			return outputUnlinkJSON(bean, taskID, "unlinked")
 		}
 
-		fmt.Printf("Unlinked: %s (was %s)\n", bean.ID, oldTaskID)
+		fmt.Printf("Unlinked: %s (was %s)\n", bean.ID, taskID)
 		return nil
 	},
 }

@@ -7,9 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/STR-Consulting/bean-me-up/internal/beans"
-	"github.com/STR-Consulting/bean-me-up/internal/config"
-	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
+	"github.com/toba/bean-me-up/internal/beans"
+	"github.com/toba/bean-me-up/internal/config"
 )
 
 // SyncResult holds the result of syncing a single bean.
@@ -41,7 +40,7 @@ type Syncer struct {
 	config    *config.ClickUpConfig
 	opts      SyncOptions
 	beansPath string // Absolute path to beans directory
-	syncStore *syncstate.Store
+	syncStore SyncStateProvider
 
 	// Tracking for relationship pass
 	beanToTaskID map[string]string // bean ID -> ClickUp task ID
@@ -51,7 +50,7 @@ type Syncer struct {
 }
 
 // NewSyncer creates a new syncer with the given client and options.
-func NewSyncer(client *Client, cfg *config.ClickUpConfig, opts SyncOptions, beansPath string, syncStore *syncstate.Store) *Syncer {
+func NewSyncer(client *Client, cfg *config.ClickUpConfig, opts SyncOptions, beansPath string, syncStore SyncStateProvider) *Syncer {
 	return &Syncer{
 		client:       client,
 		config:       cfg,
@@ -662,7 +661,7 @@ func (s *Syncer) syncRelationships(ctx context.Context, b *beans.Bean) error {
 
 // FilterBeansNeedingSync returns only beans that need to be synced based on timestamps.
 // A bean needs sync if: force is true, it has no sync record, or it was updated after last sync.
-func FilterBeansNeedingSync(beanList []beans.Bean, store *syncstate.Store, force bool) []beans.Bean {
+func FilterBeansNeedingSync(beanList []beans.Bean, store SyncStateProvider, force bool) []beans.Bean {
 	var needSync []beans.Bean
 	for _, b := range beanList {
 		if force {

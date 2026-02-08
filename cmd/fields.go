@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/STR-Consulting/bean-me-up/internal/clickup"
+	"github.com/toba/bean-me-up/internal/clickup"
 	"github.com/spf13/cobra"
 )
 

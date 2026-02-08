@@ -7,23 +7,65 @@ import (
 	"net/http/httptest"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/STR-Consulting/bean-me-up/internal/beans"
-	"github.com/STR-Consulting/bean-me-up/internal/config"
-	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
+	"github.com/toba/bean-me-up/internal/beans"
+	"github.com/toba/bean-me-up/internal/config"
 )
 
-func mustLoadStore(t *testing.T) *syncstate.Store {
-	t.Helper()
-	dir := t.TempDir()
-	store, err := syncstate.Load(dir)
-	if err != nil {
-		t.Fatalf("failed to load store: %v", err)
-	}
-	return store
+// memorySyncProvider is a simple in-memory SyncStateProvider for tests.
+type memorySyncProvider struct {
+	mu       sync.RWMutex
+	taskIDs  map[string]string
+	syncedAt map[string]*time.Time
 }
+
+func newMemorySyncProvider() *memorySyncProvider {
+	return &memorySyncProvider{
+		taskIDs:  make(map[string]string),
+		syncedAt: make(map[string]*time.Time),
+	}
+}
+
+func (m *memorySyncProvider) GetTaskID(beanID string) *string {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	id, ok := m.taskIDs[beanID]
+	if !ok || id == "" {
+		return nil
+	}
+	return &id
+}
+
+func (m *memorySyncProvider) GetSyncedAt(beanID string) *time.Time {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.syncedAt[beanID]
+}
+
+func (m *memorySyncProvider) SetTaskID(beanID, taskID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.taskIDs[beanID] = taskID
+}
+
+func (m *memorySyncProvider) SetSyncedAt(beanID string, t time.Time) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	utc := t.UTC()
+	m.syncedAt[beanID] = &utc
+}
+
+func (m *memorySyncProvider) Clear(beanID string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	delete(m.taskIDs, beanID)
+	delete(m.syncedAt, beanID)
+}
+
+func (m *memorySyncProvider) Flush() error { return nil }
 
 func newTestSyncer(t *testing.T, client *Client) *Syncer {
 	t.Helper()
@@ -31,7 +73,7 @@ func newTestSyncer(t *testing.T, client *Client) *Syncer {
 		client:       client,
 		config:       &config.ClickUpConfig{},
 		opts:         SyncOptions{ListID: "test-list"},
-		syncStore:    mustLoadStore(t),
+		syncStore:    newMemorySyncProvider(),
 		beanToTaskID: make(map[string]string),
 	}
 }
@@ -240,7 +282,7 @@ func TestSyncBean_UpdateWithTagChanges(t *testing.T) {
 		},
 	}
 
-	store := mustLoadStore(t)
+	store := newMemorySyncProvider()
 	store.SetTaskID("bean-1", "task-123")
 	syncer := &Syncer{
 		client:       client,

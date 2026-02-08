@@ -10,7 +10,7 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/STR-Consulting/bean-me-up/internal/clickup"
+	"github.com/toba/bean-me-up/internal/clickup"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )

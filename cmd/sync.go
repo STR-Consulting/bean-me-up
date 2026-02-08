@@ -3,9 +3,12 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 
-	"github.com/STR-Consulting/bean-me-up/internal/beans"
-	"github.com/STR-Consulting/bean-me-up/internal/clickup"
+	"github.com/toba/bean-me-up/internal/beans"
+	"github.com/toba/bean-me-up/internal/clickup"
+	"github.com/toba/bean-me-up/internal/syncstate"
 	"github.com/spf13/cobra"
 )
 
@@ -43,10 +46,10 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 			return err
 		}
 
-		// Load sync state store
-		syncStore, err := loadSyncStore()
-		if err != nil {
-			return fmt.Errorf("loading sync state: %w", err)
+		// Check for legacy .sync.json and warn
+		syncFilePath := filepath.Join(getBeansPath(), syncstate.SyncFileName)
+		if _, err := os.Stat(syncFilePath); err == nil {
+			fmt.Fprintln(os.Stderr, "Warning: Legacy .sync.json found. Run 'beanup migrate' to migrate sync state to bean external metadata.")
 		}
 
 		// Create clients
@@ -79,8 +82,11 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 			return nil
 		}
 
+		// Create sync state provider from bean external metadata
+		syncProvider := clickup.NewExternalSyncProvider(beansClient, beanList)
+
 		// Pre-filter to beans that actually need syncing
-		beansToSync := clickup.FilterBeansNeedingSync(beanList, syncStore, syncForce)
+		beansToSync := clickup.FilterBeansNeedingSync(beanList, syncProvider, syncForce)
 		if len(beansToSync) == 0 {
 			if jsonOut {
 				fmt.Println("[]")
@@ -114,7 +120,7 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 			}
 		}
 
-		syncer := clickup.NewSyncer(client, &cfg.Beans.ClickUp, opts, getBeansPath(), syncStore)
+		syncer := clickup.NewSyncer(client, &cfg.Beans.ClickUp, opts, getBeansPath(), syncProvider)
 
 		// Run sync
 		results, err := syncer.SyncBeans(ctx, beansToSync)
@@ -127,10 +133,10 @@ Requires CLICKUP_TOKEN environment variable to be set.`,
 			return fmt.Errorf("sync failed: %w", err)
 		}
 
-		// Save sync state
+		// Flush sync state to bean external metadata
 		if !syncDryRun {
-			if saveErr := syncStore.Save(); saveErr != nil {
-				return fmt.Errorf("saving sync state: %w", saveErr)
+			if flushErr := syncProvider.Flush(); flushErr != nil {
+				return fmt.Errorf("saving sync state: %w", flushErr)
 			}
 		}
 

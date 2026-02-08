@@ -3,8 +3,8 @@ package cmd
 import (
 	"testing"
 
-	"github.com/STR-Consulting/bean-me-up/internal/clickup"
-	"github.com/STR-Consulting/bean-me-up/internal/config"
+	"github.com/toba/bean-me-up/internal/clickup"
+	"github.com/toba/bean-me-up/internal/config"
 )
 
 func TestCheckStatusMapping_Valid(t *testing.T) {

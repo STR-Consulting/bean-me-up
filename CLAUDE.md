@@ -25,7 +25,7 @@ go install ./cmd/beanup
 
 bean-me-up syncs [beans](https://github.com/hmans/beans) issue tracker to ClickUp tasks. It operates as a standalone companion that:
 - Invokes the `beans` CLI with `--json` output (no library dependency)
-- Stores sync state in `.beans/.sync.json` (separate from bean files)
+- Stores sync state in bean external metadata (via the beans plugin system)
 - Syncs to ClickUp via REST API
 
 ### Package Structure
@@ -36,8 +36,8 @@ bean-me-up syncs [beans](https://github.com/hmans/beans) issue tracker to ClickU
 | `cmd/beanup/` | Main entrypoint for the `beanup` binary |
 | `internal/config/` | YAML configuration loading with default mappings |
 | `internal/beans/` | Wrapper around beans CLI, JSON parsing |
-| `internal/clickup/` | REST API client with retry logic, sync orchestration |
-| `internal/syncstate/` | Manages sync state in `.beans/.sync.json` |
+| `internal/clickup/` | REST API client with retry logic, sync orchestration, `ExternalSyncProvider` |
+| `internal/syncstate/` | Legacy sync state in `.beans/.sync.json` (used only by `migrate` command) |
 | `internal/frontmatter/` | Parses/writes YAML frontmatter in bean markdown files (legacy) |
 
 ### Sync Flow
@@ -51,22 +51,9 @@ Processing is parallelized with goroutines and `sync.WaitGroup`.
 
 ### Sync State Storage
 
-Sync metadata is stored in `.beans/.sync.json` (managed by `internal/syncstate/`):
-```json
-{
-  "version": 1,
-  "beans": {
-    "bean-abc1": {
-      "clickup": {
-        "task_id": "868habcd",
-        "synced_at": "2024-01-15T10:30:00Z"
-      }
-    }
-  }
-}
-```
+Sync metadata is stored in each bean's external metadata via the beans plugin system. During sync, an `ExternalSyncProvider` (in `internal/clickup/external_sync.go`) reads external data from beans at startup, caches it in memory, and flushes all changes as a single batched `beans query` call at the end. This means only 2 `beans` CLI invocations per sync regardless of bean count.
 
-This approach avoids the problem of the beans CLI overwriting frontmatter when it updates bean files.
+The `SyncStateProvider` interface abstracts sync state access so the `Syncer` doesn't depend on any specific storage backend.
 
 ### API Retry Logic
 

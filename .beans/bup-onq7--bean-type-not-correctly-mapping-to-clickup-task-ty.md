@@ -5,7 +5,7 @@ status: completed
 type: bug
 priority: normal
 created_at: 2026-01-18T17:23:39Z
-updated_at: 2026-01-18T17:35:06Z
+updated_at: 2026-02-08T22:18:31Z
 ---
 
 Bean type (e.g., bug) is not being correctly mapped to ClickUp task types. For example, bean-me-up-1xa7 is a bug but in ClickUp it became a regular task.

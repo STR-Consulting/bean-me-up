@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
-	"github.com/STR-Consulting/bean-me-up/internal/clickup"
-	"github.com/STR-Consulting/bean-me-up/internal/config"
-	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
+	"github.com/toba/bean-me-up/internal/beans"
+	"github.com/toba/bean-me-up/internal/clickup"
+	"github.com/toba/bean-me-up/internal/config"
+	"github.com/toba/bean-me-up/internal/syncstate"
 	"github.com/spf13/cobra"
 )
 
@@ -25,7 +27,7 @@ Checks include:
   - Status, priority, and type mappings are valid
   - Custom fields exist on the ClickUp list (if configured)
   - CLICKUP_TOKEN is set and valid
-  - Sync state file is valid
+  - Sync state (external metadata on beans)
   - All linked tasks exist in ClickUp
 
 Use --skip-api to perform offline validation only.`,
@@ -437,31 +439,37 @@ func checkSyncState(ctx context.Context) checkSection {
 		Checks: make([]checkResult, 0),
 	}
 
-	beansPath := getBeansPath()
+	bp := getBeansPath()
 
-	// Load sync state
-	store, err := syncstate.Load(beansPath)
+	// Check for legacy .sync.json
+	syncFilePath := filepath.Join(bp, syncstate.SyncFileName)
+	if _, err := os.Stat(syncFilePath); err == nil {
+		section.Checks = append(section.Checks, checkResult{
+			Name:    "Legacy .sync.json",
+			Status:  checkWarn,
+			Message: "Found. Run 'beanup migrate' to migrate to bean external metadata.",
+		})
+	}
+
+	// Load beans and check external metadata
+	beansClient := beans.NewClient(bp)
+	allBeans, err := beansClient.List()
 	if err != nil {
 		section.Checks = append(section.Checks, checkResult{
-			Name:    "Sync state file valid",
+			Name:    "Beans readable",
 			Status:  checkFail,
-			Message: fmt.Sprintf("Cannot load: %v", err),
+			Message: fmt.Sprintf("Cannot list beans: %v", err),
 		})
 		return section
 	}
 
-	section.Checks = append(section.Checks, checkResult{
-		Name:    "Sync state file valid",
-		Status:  checkPass,
-		Message: syncstate.SyncFileName,
-	})
-
 	// Count linked beans
-	allBeans := store.GetAllBeans()
 	linkedCount := 0
-	for _, bean := range allBeans {
-		if bean.ClickUp != nil && bean.ClickUp.TaskID != "" {
+	var linkedBeans []beans.Bean
+	for _, b := range allBeans {
+		if b.GetExternalString(beans.PluginClickUp, beans.ExtKeyTaskID) != "" {
 			linkedCount++
+			linkedBeans = append(linkedBeans, b)
 		}
 	}
 
@@ -478,11 +486,10 @@ func checkSyncState(ctx context.Context) checkSection {
 	// Check for stale syncs (>7 days)
 	staleThreshold := time.Now().AddDate(0, 0, -7)
 	staleCount := 0
-	for _, bean := range allBeans {
-		if bean.ClickUp != nil && bean.ClickUp.SyncedAt != nil {
-			if bean.ClickUp.SyncedAt.Before(staleThreshold) {
-				staleCount++
-			}
+	for _, b := range linkedBeans {
+		syncedAt := b.GetExternalTime(beans.PluginClickUp, beans.ExtKeySyncedAt)
+		if syncedAt != nil && syncedAt.Before(staleThreshold) {
+			staleCount++
 		}
 	}
 
@@ -501,19 +508,18 @@ func checkSyncState(ctx context.Context) checkSection {
 			client := clickup.NewClient(token)
 			missingCount := 0
 
-			for beanID, bean := range allBeans {
-				if bean.ClickUp != nil && bean.ClickUp.TaskID != "" {
-					_, err := client.GetTask(ctx, bean.ClickUp.TaskID)
-					if err != nil {
-						missingCount++
-						// Only report first few missing for brevity
-						if missingCount <= 3 {
-							section.Checks = append(section.Checks, checkResult{
-								Name:    "Task exists",
-								Status:  checkWarn,
-								Message: fmt.Sprintf("%s → %s: not found", beanID, bean.ClickUp.TaskID),
-							})
-						}
+			for _, b := range linkedBeans {
+				taskID := b.GetExternalString(beans.PluginClickUp, beans.ExtKeyTaskID)
+				_, err := client.GetTask(ctx, taskID)
+				if err != nil {
+					missingCount++
+					// Only report first few missing for brevity
+					if missingCount <= 3 {
+						section.Checks = append(section.Checks, checkResult{
+							Name:    "Task exists",
+							Status:  checkWarn,
+							Message: fmt.Sprintf("%s → %s: not found", b.ID, taskID),
+						})
 					}
 				}
 			}

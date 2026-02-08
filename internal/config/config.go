@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/STR-Consulting/bean-me-up/internal/beans"
+	"github.com/toba/bean-me-up/internal/beans"
 	"gopkg.in/yaml.v3"
 )
 

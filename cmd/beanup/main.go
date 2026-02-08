@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/STR-Consulting/bean-me-up/cmd"
+	"github.com/toba/bean-me-up/cmd"
 )
 
 func main() {

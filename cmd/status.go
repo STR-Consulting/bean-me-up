@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/STR-Consulting/bean-me-up/internal/beans"
-	"github.com/STR-Consulting/bean-me-up/internal/clickup"
+	"github.com/toba/bean-me-up/internal/beans"
+	"github.com/toba/bean-me-up/internal/clickup"
 	"github.com/spf13/cobra"
 )
 
@@ -19,15 +19,10 @@ status for all beans that are linked to ClickUp tasks.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		ctx := context.Background()
 
-		// Load sync state store
-		syncStore, err := loadSyncStore()
-		if err != nil {
-			return fmt.Errorf("loading sync state: %w", err)
-		}
-
 		// Get beans to check
 		beansClient := beans.NewClient(getBeansPath())
 		var beanList []beans.Bean
+		var err error
 
 		if len(args) > 0 {
 			// Check specific beans
@@ -41,9 +36,9 @@ status for all beans that are linked to ClickUp tasks.`,
 			if err != nil {
 				return fmt.Errorf("listing beans: %w", err)
 			}
-			// Filter to only linked beans
+			// Filter to only beans with ClickUp external data
 			for _, b := range allBeans {
-				if syncStore.GetTaskID(b.ID) != nil {
+				if b.GetExternalString(beans.PluginClickUp, beans.ExtKeyTaskID) != "" {
 					beanList = append(beanList, b)
 				}
 			}
@@ -67,22 +62,22 @@ status for all beans that are linked to ClickUp tasks.`,
 
 		// Build status info
 		type statusInfo struct {
-			BeanID     string  `json:"bean_id"`
-			BeanTitle  string  `json:"bean_title"`
-			BeanStatus string  `json:"bean_status"`
-			TaskID     *string `json:"task_id,omitempty"`
-			TaskStatus string  `json:"task_status,omitempty"`
-			TaskURL    string  `json:"task_url,omitempty"`
-			Linked     bool    `json:"linked"`
-			NeedsSync  bool    `json:"needs_sync"`
+			BeanID     string `json:"bean_id"`
+			BeanTitle  string `json:"bean_title"`
+			BeanStatus string `json:"bean_status"`
+			TaskID     string `json:"task_id,omitempty"`
+			TaskStatus string `json:"task_status,omitempty"`
+			TaskURL    string `json:"task_url,omitempty"`
+			Linked     bool   `json:"linked"`
+			NeedsSync  bool   `json:"needs_sync"`
 		}
 
 		statuses := make([]statusInfo, len(beanList))
 		for i, b := range beanList {
-			taskID := syncStore.GetTaskID(b.ID)
-			syncedAt := syncStore.GetSyncedAt(b.ID)
+			taskID := b.GetExternalString(beans.PluginClickUp, beans.ExtKeyTaskID)
+			syncedAt := b.GetExternalTime(beans.PluginClickUp, beans.ExtKeySyncedAt)
 
-			// Calculate needsSync using sync store timestamp
+			// Calculate needsSync
 			needsSync := true
 			if syncedAt != nil && b.UpdatedAt != nil {
 				needsSync = b.UpdatedAt.After(*syncedAt)
@@ -95,17 +90,17 @@ status for all beans that are linked to ClickUp tasks.`,
 				BeanTitle:  b.Title,
 				BeanStatus: b.Status,
 				TaskID:     taskID,
-				Linked:     taskID != nil,
+				Linked:     taskID != "",
 				NeedsSync:  needsSync,
 			}
 
 			// Fetch live task status if we have a client and task ID
-			if client != nil && taskID != nil && *taskID != "" {
+			if client != nil && taskID != "" {
 				// Skip archived beans (completed, scrapped)
 				if b.Status == "completed" || b.Status == "scrapped" {
 					continue
 				}
-				task, err := client.GetTask(ctx, *taskID)
+				task, err := client.GetTask(ctx, taskID)
 				if err == nil {
 					statuses[i].TaskStatus = task.Status.Status
 					statuses[i].TaskURL = task.URL
@@ -125,8 +120,8 @@ status for all beans that are linked to ClickUp tasks.`,
 		for _, s := range statuses {
 			taskStr := "-"
 			taskStatusStr := "-"
-			if s.TaskID != nil {
-				taskStr = *s.TaskID
+			if s.TaskID != "" {
+				taskStr = s.TaskID
 				if len(taskStr) > 12 {
 					taskStr = taskStr[:12] + "..."
 				}

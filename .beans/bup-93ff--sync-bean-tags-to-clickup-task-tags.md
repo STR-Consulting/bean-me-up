@@ -5,7 +5,7 @@ status: in-progress
 type: feature
 priority: normal
 created_at: 2026-01-30T18:55:15Z
-updated_at: 2026-01-30T19:02:14Z
+updated_at: 2026-02-08T22:18:31Z
 ---
 
 Bean tags are now defined and used in pacer/core but aren't synced to ClickUp. Add tag sync support.

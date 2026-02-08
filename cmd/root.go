@@ -8,8 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/STR-Consulting/bean-me-up/internal/config"
-	"github.com/STR-Consulting/bean-me-up/internal/syncstate"
+	"github.com/toba/bean-me-up/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -30,12 +29,12 @@ var rootCmd = &cobra.Command{
 	Long: `beanup syncs beans (from the beans CLI) to ClickUp tasks.
 
 It works as a companion tool to the standard beans CLI, storing sync
-state in .beans/.sync.json without modifying bean files.
+state in bean external metadata via the beans plugin system.
 
 Configuration is stored in .beans.clickup.yml in your project directory.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		// Skip config loading for help commands and init
-		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "init" {
+		if cmd.Name() == "help" || cmd.Name() == "completion" || cmd.Name() == "init" || cmd.Name() == "migrate" {
 			return nil
 		}
 
@@ -122,9 +121,4 @@ func requireListID() error {
 		return fmt.Errorf("ClickUp list_id is required in .beans.clickup.yml")
 	}
 	return nil
-}
-
-// loadSyncStore loads the sync state store from the beans path.
-func loadSyncStore() (*syncstate.Store, error) {
-	return syncstate.Load(getBeansPath())
 }

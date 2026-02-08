@@ -98,6 +98,82 @@ func (c *Client) GetMultiple(ids []string) ([]Bean, error) {
 	return beans, nil
 }
 
+// GraphQL executes a GraphQL query via the beans CLI, passing the query via stdin.
+func (c *Client) GraphQL(query string) ([]byte, error) {
+	args := []string{"query", "--json"}
+	if c.beansPath != "" {
+		args = append(args, "--beans-path", c.beansPath)
+	}
+
+	cmd := exec.Command("beans", args...)
+	cmd.Stdin = strings.NewReader(query)
+	out, err := cmd.Output()
+	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return nil, fmt.Errorf("beans query: %s", string(exitErr.Stderr))
+		}
+		return nil, fmt.Errorf("beans query: %w", err)
+	}
+	return out, nil
+}
+
+// ExternalDataOp describes a single setExternalData operation for batching.
+type ExternalDataOp struct {
+	BeanID string
+	Plugin string
+	Data   map[string]any
+}
+
+// SetExternalData sets external plugin data on a single bean.
+func (c *Client) SetExternalData(id, plugin string, data map[string]any) error {
+	dataJSON, err := json.Marshal(data)
+	if err != nil {
+		return fmt.Errorf("marshaling external data: %w", err)
+	}
+
+	query := fmt.Sprintf(
+		`mutation { setExternalData(id: %q, plugin: %q, data: %s) { id } }`,
+		id, plugin, string(dataJSON),
+	)
+
+	_, err = c.GraphQL(query)
+	return err
+}
+
+// RemoveExternalData removes external plugin data from a single bean.
+func (c *Client) RemoveExternalData(id, plugin string) error {
+	query := fmt.Sprintf(
+		`mutation { removeExternalData(id: %q, plugin: %q) { id } }`,
+		id, plugin,
+	)
+
+	_, err := c.GraphQL(query)
+	return err
+}
+
+// SetExternalDataBatch sets external plugin data on multiple beans in a single
+// GraphQL call using aliased mutations.
+func (c *Client) SetExternalDataBatch(ops []ExternalDataOp) error {
+	if len(ops) == 0 {
+		return nil
+	}
+
+	var b strings.Builder
+	b.WriteString("mutation {\n")
+	for i, op := range ops {
+		dataJSON, err := json.Marshal(op.Data)
+		if err != nil {
+			return fmt.Errorf("marshaling external data for %s: %w", op.BeanID, err)
+		}
+		fmt.Fprintf(&b, "  op%d: setExternalData(id: %q, plugin: %q, data: %s) { id }\n",
+			i, op.BeanID, op.Plugin, string(dataJSON))
+	}
+	b.WriteString("}\n")
+
+	_, err := c.GraphQL(b.String())
+	return err
+}
+
 // exec runs a beans command and returns the output.
 func (c *Client) exec(args ...string) ([]byte, error) {
 	cmd := exec.Command("beans", args...)
