@@ -5,7 +5,11 @@ status: completed
 type: feature
 priority: normal
 created_at: 2026-01-18T01:09:02Z
-updated_at: 2026-01-18T01:13:18Z
+updated_at: 2026-02-08T23:11:25Z
+extensions:
+    clickup:
+        synced_at: "2026-01-18T01:22:24Z"
+        task_id: 868h4hg3b
 ---
 
 Create a beanup init command that generates a complete .beans.clickup.yml configuration file by fetching data from ClickUp API.

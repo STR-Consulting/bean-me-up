@@ -174,8 +174,8 @@ func (p *ExtensionSyncProvider) appendSetOp(beanID string) {
 	p.ops = append(p.ops, pendingOp{
 		beanID: beanID,
 		set: &beans.ExtensionDataOp{
-			BeanID: beanID,
-			Name:   beans.PluginClickUp,
+			ID:   beanID,
+			Name: beans.PluginClickUp,
 			Data:   data,
 		},
 	})

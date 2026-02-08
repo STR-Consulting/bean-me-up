@@ -5,7 +5,11 @@ status: completed
 type: task
 priority: normal
 created_at: 2026-01-18T01:37:59Z
-updated_at: 2026-01-18T01:43:49Z
+updated_at: 2026-02-08T23:11:25Z
+extensions:
+    clickup:
+        synced_at: "2026-01-18T01:45:12Z"
+        task_id: 868h4hgrt
 ---
 
 Remove dead code, inline over-abstractions, and consolidate repeated patterns.

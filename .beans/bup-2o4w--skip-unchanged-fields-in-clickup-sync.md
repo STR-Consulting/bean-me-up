@@ -5,7 +5,11 @@ status: completed
 type: feature
 priority: normal
 created_at: 2026-01-20T23:46:47Z
-updated_at: 2026-01-20T23:48:33Z
+updated_at: 2026-02-08T23:11:25Z
+extensions:
+    clickup:
+        synced_at: "2026-01-22T18:53:54Z"
+        task_id: 868h5u2eq
 ---
 
 When syncing beans to ClickUp, compare fields against current task state and only include changed fields in updates. This prevents noisy activity logs showing 'You changed X from Y to Y' for unchanged fields.

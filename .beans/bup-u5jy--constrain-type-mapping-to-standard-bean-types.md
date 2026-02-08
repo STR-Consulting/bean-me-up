@@ -5,7 +5,11 @@ status: completed
 type: feature
 priority: normal
 created_at: 2026-01-18T17:53:07Z
-updated_at: 2026-01-18T17:54:25Z
+updated_at: 2026-02-08T23:11:25Z
+extensions:
+    clickup:
+        synced_at: "2026-01-18T17:55:20Z"
+        task_id: 868h4jued
 ---
 
 Change the type mapping configuration so it only accepts the 5 standard bean types (milestone, epic, feature, bug, task) rather than arbitrary strings.

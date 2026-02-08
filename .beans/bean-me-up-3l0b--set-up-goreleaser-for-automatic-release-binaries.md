@@ -5,7 +5,11 @@ status: completed
 type: task
 priority: normal
 created_at: 2026-01-17T21:53:12Z
-updated_at: 2026-01-17T21:54:27Z
+updated_at: 2026-02-08T23:11:25Z
+extensions:
+    clickup:
+        synced_at: "2026-01-18T00:07:02Z"
+        task_id: 868h4hd04
 ---
 
 Add GoReleaser config and GitHub Action to build and attach binaries to releases. This enables mise's github: backend for reliable latest version resolution.

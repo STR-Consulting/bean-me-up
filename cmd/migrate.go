@@ -67,7 +67,7 @@ Use --delete-sync-file to remove .sync.json after a successful migration.`,
 			}
 
 			ops = append(ops, beans.ExtensionDataOp{
-				BeanID: beanID,
+				ID:   beanID,
 				Name: beans.PluginClickUp,
 				Data:   data,
 			})
@@ -82,7 +82,7 @@ Use --delete-sync-file to remove .sync.json after a successful migration.`,
 			fmt.Printf("Would migrate %d bean(s):\n", len(ops))
 			for _, op := range ops {
 				taskID := op.Data[beans.ExtKeyTaskID]
-				fmt.Printf("  %s → clickup.task_id=%v\n", op.BeanID, taskID)
+				fmt.Printf("  %s → clickup.task_id=%v\n", op.ID, taskID)
 			}
 			if migrateDeleteSyncFile {
 				fmt.Printf("\nWould delete %s\n", syncFilePath)

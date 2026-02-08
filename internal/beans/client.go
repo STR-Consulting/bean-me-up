@@ -5,17 +5,24 @@ import (
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/hmans/beans/pkg/client"
 )
+
+// ExtensionDataOp is an alias for the beans client package type.
+type ExtensionDataOp = client.ExtensionDataOp
 
 // Client executes beans CLI commands and parses output.
 type Client struct {
-	beansPath string // Path to the beans directory
+	beansPath string
+	gc        *client.Client
 }
 
 // NewClient creates a new beans CLI client.
 func NewClient(beansPath string) *Client {
 	return &Client{
 		beansPath: beansPath,
+		gc:        client.New(client.WithBeansPath(beansPath)),
 	}
 }
 
@@ -98,80 +105,20 @@ func (c *Client) GetMultiple(ids []string) ([]Bean, error) {
 	return beans, nil
 }
 
-// GraphQL executes a GraphQL query via the beans CLI, passing the query via stdin.
-func (c *Client) GraphQL(query string) ([]byte, error) {
-	args := []string{"query", "--json"}
-	if c.beansPath != "" {
-		args = append(args, "--beans-path", c.beansPath)
-	}
-
-	cmd := exec.Command("beans", args...)
-	cmd.Stdin = strings.NewReader(query)
-	out, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return nil, fmt.Errorf("beans query: %s", string(exitErr.Stderr))
-		}
-		return nil, fmt.Errorf("beans query: %w", err)
-	}
-	return out, nil
-}
-
-// ExtensionDataOp describes a single setExtensionData operation for batching.
-type ExtensionDataOp struct {
-	BeanID string
-	Name   string
-	Data   map[string]any
-}
-
 // SetExtensionData sets extension data on a single bean.
 func (c *Client) SetExtensionData(id, name string, data map[string]any) error {
-	dataJSON, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("marshaling extension data: %w", err)
-	}
-
-	query := fmt.Sprintf(
-		`mutation { setExtensionData(id: %q, name: %q, data: %s) { id } }`,
-		id, name, string(dataJSON),
-	)
-
-	_, err = c.GraphQL(query)
-	return err
+	return c.gc.SetExtensionData(id, name, data)
 }
 
 // RemoveExtensionData removes extension data from a single bean.
 func (c *Client) RemoveExtensionData(id, name string) error {
-	query := fmt.Sprintf(
-		`mutation { removeExtensionData(id: %q, name: %q) { id } }`,
-		id, name,
-	)
-
-	_, err := c.GraphQL(query)
-	return err
+	return c.gc.RemoveExtensionData(id, name)
 }
 
 // SetExtensionDataBatch sets extension data on multiple beans in a single
 // GraphQL call using aliased mutations.
 func (c *Client) SetExtensionDataBatch(ops []ExtensionDataOp) error {
-	if len(ops) == 0 {
-		return nil
-	}
-
-	var b strings.Builder
-	b.WriteString("mutation {\n")
-	for i, op := range ops {
-		dataJSON, err := json.Marshal(op.Data)
-		if err != nil {
-			return fmt.Errorf("marshaling extension data for %s: %w", op.BeanID, err)
-		}
-		fmt.Fprintf(&b, "  op%d: setExtensionData(id: %q, name: %q, data: %s) { id }\n",
-			i, op.BeanID, op.Name, string(dataJSON))
-	}
-	b.WriteString("}\n")
-
-	_, err := c.GraphQL(b.String())
-	return err
+	return c.gc.SetExtensionDataBatch(ops)
 }
 
 // exec runs a beans command and returns the output.
