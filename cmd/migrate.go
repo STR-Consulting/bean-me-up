@@ -52,10 +52,26 @@ Use --delete-sync-file to remove .sync.json after a successful migration.`,
 			return nil
 		}
 
+		// List existing beans so we can skip stale IDs from .sync.json
+		beansClient := beans.NewClient(bp)
+		existingBeans, err := beansClient.List()
+		if err != nil {
+			return fmt.Errorf("listing beans: %w", err)
+		}
+		existingIDs := make(map[string]bool, len(existingBeans))
+		for _, b := range existingBeans {
+			existingIDs[b.ID] = true
+		}
+
 		// Build batch operations
 		var ops []beans.ExtensionDataOp
+		var skipped int
 		for beanID, beanSync := range allBeans {
 			if beanSync.ClickUp == nil || beanSync.ClickUp.TaskID == "" {
+				continue
+			}
+			if !existingIDs[beanID] {
+				skipped++
 				continue
 			}
 
@@ -77,6 +93,9 @@ Use --delete-sync-file to remove .sync.json after a successful migration.`,
 			fmt.Println("No linked beans to migrate.")
 			return nil
 		}
+		if skipped > 0 {
+			fmt.Printf("Skipping %d bean(s) no longer present.\n", skipped)
+		}
 
 		if migrateDryRun {
 			fmt.Printf("Would migrate %d bean(s):\n", len(ops))
@@ -91,7 +110,6 @@ Use --delete-sync-file to remove .sync.json after a successful migration.`,
 		}
 
 		// Execute batch migration
-		beansClient := beans.NewClient(bp)
 		fmt.Printf("Migrating %d bean(s)...\n", len(ops))
 
 		if err := beansClient.SetExtensionDataBatch(ops); err != nil {
