@@ -190,7 +190,7 @@ func truncateTitle(title string, maxLen int) string {
 }
 
 func outputResultsText(results []clickup.SyncResult) error {
-	var created, updated, skipped, errors int
+	var created, updated, unchanged, skipped, errors int
 
 	for _, r := range results {
 		switch r.Action {
@@ -200,6 +200,8 @@ func outputResultsText(results []clickup.SyncResult) error {
 		case "updated":
 			updated++
 			fmt.Printf("  Updated: %s → %s \"%s\"\n", r.BeanID, r.TaskURL, truncateTitle(r.BeanTitle, 20))
+		case "unchanged":
+			unchanged++
 		case "skipped":
 			skipped++
 		case "would create":
@@ -212,7 +214,7 @@ func outputResultsText(results []clickup.SyncResult) error {
 		}
 	}
 
-	fmt.Printf("\nSummary: %d created, %d updated, %d skipped, %d errors\n",
-		created, updated, skipped, errors)
+	fmt.Printf("\nSummary: %d created, %d updated, %d unchanged, %d skipped, %d errors\n",
+		created, updated, unchanged, skipped, errors)
 	return nil
 }
